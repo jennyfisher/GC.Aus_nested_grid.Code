@@ -934,18 +934,20 @@
 
 ! Local variables
       ! Fields for TOMAS simulation
-      REAL*8        :: BINMASS(IIPAR,JJPAR,LLPAR,IBINS*ICOMP)
-      REAL*8        :: tempnh4(ibins)
-      INTEGER       :: TID, I, J, L
-      REAL*8        :: MK_TEMP(IBINS)
-      INTEGER       :: ii=53, jj=29, ll=1
+      REAL*8           :: BINMASS(IIPAR,JJPAR,LLPAR,IBINS*ICOMP)
+      INTEGER          :: TID, I, J, L
+      INTEGER          :: ii=53, jj=29, ll=1
+      REAL(fp)         :: NH4_CONC
 
       ! SAVEd scalars
-      LOGICAL, SAVE :: FIRST = .TRUE.
+      LOGICAL, SAVE    :: FIRST = .TRUE.
       
       ! Pointers
-      REAL*8, POINTER :: Spc(:,:,:,:)
-      REAL(fp), POINTER :: MK_TEMP2(:)
+      REAL*8,  POINTER :: Spc(:,:,:,:)
+
+      ! Arrays
+      REAL(fp)         :: tempnh4(ibins)
+      REAL(fp)         :: MK_TEMP2(IBINS)
 
       !=================================================================
       ! EMISSSULFATETOMAS begins here!
@@ -984,17 +986,20 @@
 
 !$OMP PARALLEL DO
 !$OMP+DEFAULT( SHARED )
-!$OMP+PRIVATE( I, J, L, TEMPNH4, MK_TEMP2 )
+!$OMP+PRIVATE( I, J, L, TEMPNH4, MK_TEMP2, NH4_CONC )
 !$OMP+SCHEDULE( DYNAMIC )
             DO L=1,LLPAR
             DO J=1,JJPAR
             DO I=1,IIPAR
 
-               MK_TEMP2 => Spc(I,J,L,id_SF1:id_SF1-1+IBINS)
-               CALL NH4BULKTOBIN( MK_TEMP2, Spc(I,J,L,id_NH4), TEMPNH4 )
+               ! Change pointer to a variable to avoid array temporary
+               ! (bmy, 7/7/17)
+               MK_TEMP2 = Spc(I,J,L,id_SF1:id_SF1-1+IBINS)
+               NH4_CONC = Spc(I,J,L,id_NH4)
+               CALL NH4BULKTOBIN( MK_TEMP2, NH4_CONC, TEMPNH4 )
 
                BINMASS(I,J,L,TID:TID+IBINS-1) = TEMPNH4(1:IBINS)
-            Enddo
+            ENDDO
             ENDDO
             ENDDO
 !$OMP END PARALLEL DO
@@ -1071,7 +1076,7 @@
       REAL*8                 :: SO4(LLPAR), DTSRCE  , EFRAC(LLPAR)
       REAL*8                 :: TSO4,       FEMIS
       REAL*8                 :: AREA_CM2
-      REAL*8                 :: SO4an(IIPAR,JJPAR,2)
+      REAL*8                 :: SO4an(IIPAR,JJPAR,LLPAR)
       REAL*8                 :: SO4bf(IIPAR,JJPAR)
       REAL*8                 :: SO4anbf(IIPAR,JJPAR,2)
       REAL*8 BFRAC(IBINS)     ! Mass fraction emitted to each bin
@@ -1114,7 +1119,7 @@
 !      REAL(fp)               :: Avginner(IBINS)
 
       REAL(fp)               :: AREA(IIPAR, JJPAR)
-      REAL(fp)               :: AREA3D(IIPAR, JJPAR,2)
+!      REAL(fp)               :: AREA3D(IIPAR, JJPAR,2)
 
       ! Pointers
       REAL(f4),        POINTER :: Ptr2D(:,:  )
@@ -1166,8 +1171,8 @@
 
       ! Grid box aarea
       AREA = HcoState%Grid%AREA_M2%Val(:,:)
-      AREA3D(:,:,1) = AREA(:,:)
-      AREA3D(:,:,2) = AREA(:,:)
+!      AREA3D(:,:,1) = AREA(:,:)
+!      AREA3D(:,:,2) = AREA(:,:)
 
       ! Define subgrid coagulation timescale (win, 10/28/08)
 #if   defined( GRID4x5   )
@@ -1213,7 +1218,10 @@
       Ptr2D => NULL()
 
       ! convert to kg/box/sec
-      SO4an = SO4_ANTH(:,:,:) * AREA3d(:,:,:)
+      DO L = 1, LLPAR
+         SO4an(:,:,L) = 0.0d0
+         SO4an(:,:,L) = SO4_ANTH(:,:,L) * AREA(:,:)
+      END DO
       SO4bf = SO4_BIOF(:,:) * AREA(:,:)
 
       !=================================================================
@@ -1267,19 +1275,19 @@
          !==============================================================
          ! Add option for non-local PBL (Lin, 03/31/09)
          IF (.NOT. LNLPBL) THEN
-         IF ( NTOP > 2 ) THEN
+!         IF ( NTOP > 2 ) THEN
 
             ! Loop thru boundary layer
-            DO L = 1, NTOP
+            DO L = 1, LLPAR
 
                ! Fraction of PBL spanned by grid box (I,J,L) [unitless]
                EFRAC(L)  = GET_FRAC_OF_PBL( I, J, L )
 
             ENDDO
-         ELSE
-            EFRAC(1) = ( SO4an(I,J,1) + SO4bf(I,J) ) / TSO4
-            EFRAC(2) = SO4an(I,J,2) / TSO4
-         ENDIF
+!         ELSE
+!            EFRAC(1) = ( SO4an(I,J,1) + SO4bf(I,J) ) / TSO4
+!            EFRAC(2) = SO4an(I,J,2) / TSO4
+!         ENDIF
 
          IF ( ABS( SUM( EFRAC(:)) - 1.d0 ) > 1.D-5 ) THEN
             PRINT*, '### ERROR in SRCSF30!'
@@ -7593,11 +7601,11 @@
 
 #if   defined( TOMAS )
       ! Allocate for TOMAS microphysics
-      ALLOCATE( PSO4_SO2AQ( IIPAR, JJPAR, LLCHEM ), STAT=AS )
+      ALLOCATE( PSO4_SO2AQ( IIPAR, JJPAR, LLPAR ), STAT=AS )
       IF ( AS /= 0 ) CALL ALLOC_ERR( 'PSO4_SO2AQ' )
       PSO4_SO2AQ = 0e+0_fp
 
-      ALLOCATE( SO4_ANTH( IIPAR, JJPAR, LLCHEM ), STAT=AS )
+      ALLOCATE( SO4_ANTH( IIPAR, JJPAR, LLPAR ), STAT=AS )
       IF ( AS /= 0 ) CALL ALLOC_ERR( 'SO4_ANTH' )
       SO4_ANTH = 0e+0_fp
 

@@ -2178,7 +2178,6 @@
 ! !USES:
 !
       USE ErrCode_Mod
-      USE ERROR_MOD,          ONLY : GC_Error
       USE Input_Opt_Mod,      ONLY : OptInput     
       USE State_Chm_Mod,      ONLY : ChmState
       USE State_Met_Mod,      ONLY : MetState
@@ -2210,7 +2209,7 @@
 !                                Replace TCVV with spc db MW and phys constant
 !  07 Jul 2016 - E. Lundgren   - Replace tracer pointer with species pointer
 !  11 Aug 2016 - R. Yantosca   - Remove temporary tracer-removal code
-
+!  26 Jun 2017 - R. Yantosca - GC_ERROR is now contained in errcode_mod.F90
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -6203,7 +6202,7 @@
          ! First line not important
          READ(IU_FILE,*,IOSTAT=IOS)
          IF ( IOS /= 0 ) THEN
-            WRITE(6,*) 'UCX: READ ERROR IN ', TRIM(FILENAME)
+            WRITE(6,*) 'UCX: READ ERROR L1 IN ', TRIM(FILENAME)
              CALL IOERROR( IOS, IU_FILE, 'UCX_MOD:SFCMR_READ')
          ENDIF
          
@@ -6216,27 +6215,31 @@
          DO I=1,2
             READ(IU_FILE,*,IOSTAT=IOS)
             IF ( IOS /= 0 ) THEN
-               WRITE(6,*) 'UCX: READ ERROR IN ', TRIM(FILENAME)
+               !WRITE(6,*) 'UCX: READ ERROR LX IN ', TRIM(FILENAME)
+               WRITE(6,'(a,I4,a,a,a,I4)') 'UCX: READ ERROR ', I-3, 
+     &             ' IN ', TRIM(FILENAME), '. Error code: ', IOS
                 CALL IOERROR( IOS, IU_FILE, 'UCX_MOD:SFCMR_READ')
             ENDIF
          ENDDO
-  
-         ! C2BR2F4 has a different format.
-         IF ( TRIM(iName) == 'C2BR2F4' ) THEN
-            FM = "(F7.2,F8.2)"
-         ELSE
-            !FM = "(F7.2,F11.2)"
-            FM = "(F7.2,F12.2)"
-         ENDIF
+ 
+         ! Not necessary to specify the format 
+         !! C2BR2F4 has a different format.
+         !IF ( TRIM(iName) == 'C2BR2F4' ) THEN
+         !   FM = "(F7.2,F8.2)"
+         !ELSE
+         !   !FM = "(F7.2,F11.2)"
+         !   FM = "(F7.2,F12.2)"
+         !ENDIF
    
          ! Read until end of file 
          DO
             ! Read values into temporary buffer
-            READ(IU_FILE,FM,IOSTAT=IOS) TMPYR, TMPMR
+            READ(IU_FILE,*,IOSTAT=IOS) TMPYR, TMPMR
    
             ! Error?
             IF ( IOS > 0 ) THEN
-               WRITE(6,*) 'UCX: READ ERROR IN ', TRIM(FILENAME)
+               WRITE(6,'(a,I4,a,a,a,I4)') 'UCX: READ ERROR ', NX, 
+     &             ' IN ', TRIM(FILENAME), '. Error code: ', IOS
                 CALL IOERROR( IOS, IU_FILE, 'UCX_MOD:SFCMR_READ')
             ENDIF
    

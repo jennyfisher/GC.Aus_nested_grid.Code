@@ -1054,7 +1054,6 @@ CONTAINS
 !
     USE CMN_SIZE_MOD
     USE ErrCode_Mod
-    USE ERROR_MOD,          ONLY : GC_Error
     USE Input_Opt_Mod,      ONLY : OptInput
     USE Species_Mod,        ONLY : Species
     USE State_Chm_Mod,      ONLY : ChmState
@@ -1096,6 +1095,7 @@ CONTAINS
 !                              species ID from State_Chm%Map_Advect.
 !  01 Jul 2016 - R. Yantosca - Now rename species DB object ThisSpc to SpcInfo
 !  10 Aug 2016 - R. Yantosca - Remove temporary tracer-removal code
+!  26 Jun 2017 - R. Yantosca - GC_ERROR is now contained in errcode_mod.F90
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -1295,7 +1295,7 @@ CONTAINS
 !
     USE CMN_SIZE_MOD
     USE ErrCode_Mod
-    USE ERROR_MOD,          ONLY : ALLOC_ERR, GC_Error
+    USE ERROR_MOD,          ONLY : ALLOC_ERR
     USE Input_Opt_Mod,      ONLY : OptInput
     USE Species_Mod,        ONLY : Species
     USE State_Chm_Mod,      ONLY : ChmState
@@ -1339,6 +1339,7 @@ CONTAINS
 !  12 Jul 2016 - R. Yantosca - Now also store advected species ID's
 !  11 Aug 2016 - R. Yantosca - Remove temporary tracer-removal code
 !  20 Sep 2016 - R. Yantosca - Rewrote GMI_TrName statement for Gfortran
+!  26 Jun 2017 - R. Yantosca - GC_ERROR is now contained in errcode_mod.F90
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -1347,6 +1348,7 @@ CONTAINS
 !
     ! Strings
     CHARACTER(LEN=16)      :: sname
+    CHARACTER(LEN=255)     :: ErrMsg, ThisLoc
 
     ! Scalars
     INTEGER                :: AS, N, NN, NA, nAdvect
@@ -1358,14 +1360,16 @@ CONTAINS
     ! Pointers
     TYPE(Species), POINTER :: SpcInfo
 
+    !================================================================
+    ! Initialize 
     !=================================================================
-    ! INIT_STRAT_CHEM begins here!
+    RC       = GC_SUCCESS
+    ErrMsg   = ''
+    ThisLoc  = ' -> Init_Strat_Chem (in Headers/strat_chem_mod.F90)'
+
     !=================================================================
-
-    ! Assume success
-    RC                       = GC_SUCCESS
-
     ! Get species ID flags
+    !=================================================================
     id_Br                    = Ind_('Br'     )
     id_Br2                   = Ind_('Br2'    )
     id_BrNO3                 = Ind_('BrNO3'  ) 
@@ -1596,7 +1600,11 @@ CONTAINS
     ! Set MINIT. Ignore in ESMF environment because State_Chm%Species
     ! is not yet filled during initialization. (ckeller, 4/6/16)
     CALL SET_MINIT( am_I_Root, Input_Opt, State_Met, State_Chm, RC )
-    IF ( RC /= GC_SUCCESS ) RETURN
+    IF ( RC /= GC_SUCCESS ) THEN
+       ErrMsg = 'Error encountered in routine "Set_MInit"!'
+       CALL GC_Error( ErrMsg, RC, ThisLoc )
+       RETURN
+    ENDIF
 #endif
 
     ! Array to determine the mean tropopause level over the period
@@ -1631,7 +1639,6 @@ CONTAINS
 !
 ! !USES:
 !
-    USE ERROR_MOD,     ONLY : GC_ERROR
     USE ErrCode_Mod
     USE Input_Opt_Mod, ONLY : OptInput
     USE State_Chm_Mod, ONLY : ChmState
@@ -1659,48 +1666,57 @@ CONTAINS
 !                              INIT_STRAT_CHEM so that it can be called from
 !                              within DO_STRAT_CHEM (for ESMF applications).
 !  15 Mar 2017 - E. Lundgren - Add unit catch and error handling
+!  26 Jun 2017 - R. Yantosca - GC_ERROR is now contained in errcode_mod.F90
 !EOP
 !------------------------------------------------------------------------------
 !BOC
 !
 ! !LOCAL VARIABLES:
 !
-    INTEGER :: N, NA
-    LOGICAL :: UNITCHANGE
-    CHARACTER(LEN=255)     :: MSG, LOC
+    ! Scalars
+    INTEGER            :: N, NA
+    LOGICAL            :: UNITCHANGE
+
+    ! Strings
+    CHARACTER(LEN=255) :: ErrMsg, ThisLoc
 
     !=================================================================
     ! SET_MINIT begins here!
     !=================================================================
-
-    ! Assume success
-    RC                       = GC_SUCCESS
-
-    ! Set location for error handling
-    LOC = 'Routine SET_MINIT in strat_chem_mod.F90'
+    
+    ! Initialize
+    RC      = GC_SUCCESS
+    ErrMsg  = ''
+    ThisLoc = '-> Set_MInit (in GeosCore/strat_chem_mod.F90)'
 
     ! Assume no unit change is necessary and species are already in kg
     UNITCHANGE = .FALSE.
 
-    ! Safety check that STT is non-zero.
-    IF ( SUM(State_Chm%Species) <= 0.0_fp ) THEN
-       CALL GC_Error( 'Negative species concentrations!', RC, LOC )
+    ! Safety check that the advected species are non-zero.
+    IF ( SUM( State_Chm%Species(:,:,:,1:State_Chm%nAdvect) ) <= 0.0_fp ) THEN
+       ErrMsg = 'One or more advected species have negative concentrations!'
+       CALL GC_Error( ErrMsg, RC, ThisLoc )
+       RETURN
     ENDIF
 
     ! If incoming species units are in mixing ratio, convert species 
     ! from [kg/kg dry air] to [kg] so that initial state of atmosphere 
     ! is in same units as chemistry ([kg]), and then convert back after 
     ! MInit is assigned (ewl, 8/10/15)
-    IF ( TRIM(State_Chm%Spc_Units) .eq. 'kg/kg dry' ) THEN
+    IF ( TRIM( State_Chm%Spc_Units ) .eq. 'kg/kg dry' ) THEN
        UNITCHANGE = .TRUE.
        CALL ConvertSpc_KgKgDry_to_Kg( am_I_Root, State_Met, State_Chm, RC )
        IF ( RC /= GC_SUCCESS ) THEN
-          CALL GC_Error('Unit conversion error!', RC, LOC )
+          ErrMsg = 'Unit conversion error!'
+          CALL GC_Error( ErrMsg, RC, ThisLoc )
+          RETURN
        ENDIF
     ELSE IF ( TRIM(State_Chm%Spc_Units) .ne. 'kg' ) THEN
-          MSG = 'Incorrect species units: ' // TRIM(State_Chm%Spc_Units) &
-               // ' (must be kg or kg/kg dry)'
-          CALL GC_Error( MSG, RC, LOC )
+       ErrMsg = 'Incorrect species units: '   // &
+            TRIM(State_Chm%Spc_Units)    // &
+            ' (must be kg or kg/kg dry)'
+       CALL GC_Error( ErrMsg, RC, ThisLoc )
+       RETURN
     ENDIF
 
     ! Loop over only the advected species
@@ -1718,7 +1734,8 @@ CONTAINS
     IF ( UNITCHANGE ) THEN
        CALL ConvertSpc_Kg_to_KgKgDry( am_I_Root, State_Met, State_Chm, RC )
        IF ( RC /= GC_SUCCESS ) THEN
-          CALL GC_Error('Unit conversion error!', RC, LOC)
+          ErrMsg = 'Unit conversion error!'
+          CALL GC_Error( ErrMsg, RC, ThisLoc )
           RETURN
        ENDIF
     ENDIF

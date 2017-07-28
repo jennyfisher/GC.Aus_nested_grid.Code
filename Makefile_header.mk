@@ -302,9 +302,19 @@ endif
 # %%%%% Test if mpif90/mpifort is selected (for now assume ifort) %%%%%
 REGEXP               :=(^[Mm][Pp][Ii])
 ifeq ($(shell [[ "$(FC)" =~ $(REGEXP) ]] && echo true),true)
-  COMPILE_CMD        :=$(FC)
-  COMPILER_FAMILY    :=Intel
   USER_DEFS          += -DLINUX_IFORT
+  REG_GNU            :=(^[Gg][Nn][Uu])
+  REG_INTEL          :=(^[Ii][Ff][Oo][Rr][Tt])
+  DISCRIM            :=$(word 1,$(shell $(FC) --version ) )
+  ifeq ($(shell [[ "$(DISCRIM)" =~ $(REG_INTEL) ]] && echo true),true)
+     COMPILER_FAMILY    :=Intel
+     USER_DEFS          += -DLINUX_IFORT
+  else ifeq ($(shell [[ "$(DISCRIM)" =~ $(REG_GNU) ]] && echo true),true)
+     COMPILER_FAMILY    :=GNU
+     USER_DEFS          += -DLINUX_GFORTRAN
+  else
+     $(error Could not determine compiler underlying mpifort/mpif90 )
+  endif
 endif
 
 # %%%%% Test if Intel Fortran Compiler is selected %%%%%
@@ -313,11 +323,6 @@ ifeq ($(shell [[ "$(FC)" =~ $(REGEXP) ]] && echo true),true)
 
   # If we are building GCHP, then set the compile command to "mpifort",
   # which invokes the MPI magic.  Otherwise set it to $(FC). (bmy, 10/17/16)
-  ifeq ($(IS_HPC),1) 
-    COMPILE_CMD      :=mpifort
-  else
-    COMPILE_CMD      :=$(FC)
-  endif
   COMPILER_FAMILY    :=Intel
   USER_DEFS          += -DLINUX_IFORT
 endif
@@ -325,11 +330,6 @@ endif
 # %%%%% Test if GNU Fortran Compiler is selected %%%%%
 REGEXP               :=(^[Gg][Ff][Oo][Rr][Tt][Rr][Aa][Nn])
 ifeq ($(shell [[ "$(FC)" =~ $(REGEXP) ]] && echo true),true)
-  ifeq ($(HPC),yes) 
-    COMPILE_CMD      :=mpif90
-  else
-    COMPILE_CMD      :=$(FC)
-  endif
   COMPILER_FAMILY    :=GNU
   USER_DEFS          += -DLINUX_GFORTRAN
 endif
@@ -337,9 +337,15 @@ endif
 # %%%%% Test if PGI Fortran compiler is selected  %%%%%
 REGEXP               :=(^[Pp][Gg])
 ifeq ($(shell [[ "$(FC)" =~ $(REGEXP) ]] && echo true),true)
-  COMPILE_CMD        :=$(FC)
   COMPILER_FAMILY    :=PGI
   USER_DEFS          += -DLINUX_PGI
+endif
+
+# Is this GCHP?
+ifeq ($(IS_HPC),1)
+  COMPILE_CMD        :=mpifort
+else
+  COMPILE_CMD        :=$(FC)
 endif
 
 # %%%%% ERROR CHECK!  Make sure our compiler selection is valid! %%%%%
@@ -1056,22 +1062,45 @@ LINK_HCO             :=$(LINK_HCO) -lNcUtils $(NC_LINK_CMD)
 ###                                                                         ###
 ###  Test if the netCDF library was built with compression enabled          ###
 ###                                                                         ###
+###  NOTE: Compressing the netCDF files will make it impossible to compare  ###
+###  them for identical-ness in a unit test or diff test.  Therefore, we    ###
+###  have added some extra checks to skip the compression if so desired.    ###
+###                                                                         ###
 ###############################################################################
 
-# Test if the "nf_def_var_deflate" function is defined in netcdf.inc
-# Look for netcdf.inc where the netCDF-Fortran library is located
-ifdef GC_F_INCLUDE
-  GREP :=$(strip $(shell grep nf_def_var_deflate $(GC_F_INCLUDE)/netcdf.inc))
-else
-  GREP :=$(strip $(shell grep nf_def_var_deflate $(GC_INCLUDE)/netcdf.inc))
+# Assume we will turn on netCDF compression (if present)
+IS_DEFLATE           :=1
+
+# Unless NC_NODEFLATE=y
+REGEXP               :=(^[Yy]|^[Yy][Ee][Ss])
+ifeq ($(shell [[ "$(NC_NODEFLATE)" =~ $(REGEXP) ]] && echo true),true)
+  IS_DEFLATE         :=0
 endif
 
-# Look for the second word of the combined search results
-WORD                 :=$(word 2,"$(GREP)")
+# Or DEBUG=y.  This will make sure unit tests and diff tests aren't affected.
+REGEXP               := (^[Yy]|^[Yy][Ee][Ss])
+ifeq ($(shell [[ "$(DEBUG)" =~ $(REGEXP) ]] && echo true),true)
+  IS_DEFLATE         :=0
+endif
 
-# If it matches "nf_def_var_deflate", then define Cpp flag NC_HAS_COMPRESSION 
-ifeq ($(WORD),nf_def_var_deflate)
-  USER_DEFS          += -DNC_HAS_COMPRESSION
+# Skip netCDF compression unless it's requested (or not a debug run)
+ifeq ($(IS_DEFLATE),1)
+
+  # Test if the "nf_def_var_deflate" function is defined in netcdf.inc
+  # Look for netcdf.inc where the netCDF-Fortran library is located
+  ifdef GC_F_INCLUDE
+    GREP :=$(strip $(shell grep nf_def_var_deflate $(GC_F_INCLUDE)/netcdf.inc))
+  else
+    GREP :=$(strip $(shell grep nf_def_var_deflate $(GC_INCLUDE)/netcdf.inc))
+  endif
+
+  # Look for the second word of the combined search results
+  WORD               :=$(word 2,"$(GREP)")
+
+  # If it matches "nf_def_var_deflate", then define Cpp flag NC_HAS_COMPRESSION 
+  ifeq ($(WORD),nf_def_var_deflate)
+    USER_DEFS        += -DNC_HAS_COMPRESSION
+  endif
 endif
 
 ###############################################################################
@@ -1110,7 +1139,11 @@ ifeq ($(COMPILER_FAMILY),GNU)
 
   # Base set of compiler flags
   FFLAGS             :=-cpp -w -std=legacy -fautomatic -fno-align-commons
-  FFLAGS             += -fconvert=big-endian
+  ifeq ($(IS_HPC),1)
+    FFLAGS             += -fconvert=native
+  else
+    FFLAGS             += -fconvert=big-endian
+  endif
   FFLAGS             += -fno-range-check
 
   # OPTIONAL: Add the GNU Fortran -march option, which compiles for a
@@ -1142,7 +1175,7 @@ ifeq ($(COMPILER_FAMILY),GNU)
     FFLAGS           += -g -gdwarf-2 -gstrict-dwarf -O0
     FFLAGS           += -Wall -Wextra -Wconversion
     FFLAGS           += -Warray-temporaries -fcheck-array-temporaries
-    TRACEBACK        := yes
+    TRACEBACK        :=yes
     USER_DEFS        += -DDEBUG
   else
     FFLAGS           += $(OPT)
@@ -1278,7 +1311,7 @@ ifeq ($(COMPILER_FAMILY),Intel)
   REGEXP             := (^[Yy]|^[Yy][Ee][Ss])
   ifeq ($(shell [[ "$(DEBUG)" =~ $(REGEXP) ]] && echo true),true)
     FFLAGS           += -g -O0 -check arg_temp_created -debug all
-    TRACEBACK        := yes
+    TRACEBACK        :=yes
     USER_DEFS        += -DDEBUG
   else
     FFLAGS           += $(OPT) -vec-report0
@@ -1414,6 +1447,7 @@ ifeq ($(COMPILER_FAMILY),PGI)
   REGEXP             := (^[Yy]|^[Yy][Ee][Ss])
   ifeq ($(shell [[ "$(DEBUG)" =~ $(REGEXP) ]] && echo true),true)
     FFLAGS           += -g -O0
+    TRACEBACK        :=yes
     USER_DEFS        += -DDEBUG
   else
     FFLAGS           += $(OPT)

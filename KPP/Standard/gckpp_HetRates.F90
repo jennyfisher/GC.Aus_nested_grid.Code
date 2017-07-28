@@ -17,7 +17,6 @@ MODULE GCKPP_HETRATES
   USE CMN_FJX_MOD,        ONLY : NDUST
   USE CMN_FJX_MOD,        ONLY : NAER
   USE CMN_SIZE_MOD,       ONLY : LLSTRAT
-  USE PHYSCONSTANTS,      ONLY : CONSVAP
   USE ERROR_MOD,          ONLY : ERROR_STOP
   USE ERROR_MOD,          ONLY : GEOS_CHEM_STOP
   USE ERROR_MOD,          ONLY : IS_SAFE_DIV
@@ -28,7 +27,7 @@ MODULE GCKPP_HETRATES
   USE State_Chm_Mod,      ONLY : Ind_
   USE State_Met_Mod,      ONLY : MetState
   USE Input_Opt_Mod,      ONLY : OptInput
-  USE PhysConstants,      ONLY : AVO, RGASLATM, HSTAR_EPOX
+  USE PhysConstants,      ONLY : AVO, RGASLATM, CONSVAP
   USE Precision_Mod,      ONLY : fp
 
   IMPLICIT NONE
@@ -97,7 +96,17 @@ MODULE GCKPP_HETRATES
   REAL(fp) :: SPC_NIT,      GAMMA_HO2, XTEMP,   XDENA
   REAL(fp) :: CLD_BRNO3_RC, KI_HBR,    KI_HOBr, QLIQ
   REAL(fp) :: QICE
-  REAL(fp) :: H_PLUS, MSO4, MNO3, MHSO4
+  REAL(fp) :: H_PLUS,       MSO4,      MNO3,    MHSO4
+  REAL(fp) :: MW_HO2,       MW_NO2,    MW_NO3
+  REAL(fp) :: MW_N2O5,      MW_GLYX,   MW_MGLY
+  REAL(fp) :: MW_IEPOXA,    MW_IEPOXB, MW_IEPOXD
+  REAL(fp) :: MW_IMAE,      MW_LVOC,   MW_ISN1OG
+  REAL(fp) :: MW_ISOPND,    MW_ISOPNB, MW_MACRN
+  REAL(fp) :: MW_MVKN,      MW_R4N2,   MW_DHDN
+  REAL(fp) :: MW_MONITS,    MW_MONITU, MW_HONIT
+  REAL(fp) :: MW_IONITA,    MW_MONITA, MW_BrNO3
+  REAL(fp) :: MW_HOBr,      MW_HBr,    MW_ClNO3
+  REAL(fp) :: MW_HOCl
 
   ! Arrays
   REAL(fp) :: SCF2(3)
@@ -214,6 +223,9 @@ MODULE GCKPP_HETRATES
 !  01 Apr 2016 - R. Yantosca - Remove KII_KI; we now declare that locally
 !  31 May 2016 - E. Lundgren - Replace IO%XNUMOL with emMW_g from species
 !                              database (emitted species g/mol)
+!  26 Jul 2017 - M. Sulprizio- Remove hardcoded molecular weights from calls to
+!                              Het* functions and use MW from species database
+!                              instead
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -227,6 +239,7 @@ MODULE GCKPP_HETRATES
       REAL(fp) :: HOBr_RTEMP,   QICE,     QLIQ,     SPC_BrNO3
       REAL(fp) :: SPC_ClNO3,    SPC_H2O,  SPC_HBr,  SPC_HCl
       REAL(fp) :: SPC_HOBr,     SPC_HOCl, SPC_N2O5, VPRESH2O
+      LOGICAL, SAVE :: FIRST = .TRUE.
 
 #if defined( UCX )
       ! Variables for UCX-based mechanisms
@@ -290,6 +303,103 @@ MODULE GCKPP_HETRATES
       VPRESH2O      = CONSVAP * EXP(CONSEXP) / SM%T(I,J,L) 
       RELHUM        = RELHUM / VPRESH2O 
       RELHUM        = RELHUM * 100e+0_fp
+
+      !--------------------------------------------------------------------
+      ! Get species molecular weights [kg/mol]
+      !--------------------------------------------------------------------
+      IF ( FIRST) THEN
+         ! Hardcode HO2 for now
+         ! MW_g is not defined for HO2 in the species database but model
+         ! output changes when it is added there (mps, 7/26/17)
+         MW_HO2    = 33.0_fp
+
+         IND       = Ind_( 'NO2' )
+         MW_NO2    = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'NO3' )
+         MW_NO3    = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'N2O5' )
+         MW_N2O5   = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'GLYX' )
+         MW_GLYX   = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'MGLY' )
+         MW_MGLY   = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'IEPOXA' )
+         MW_IEPOXA = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'IEPOXB' )
+         MW_IEPOXB = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'IEPOXD' )
+         MW_IEPOXD = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'IMAE' )
+         MW_IMAE   = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'LVOC' )
+         MW_LVOC   = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'ISN1OG' )
+         MW_ISN1OG = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'ISOPND' )
+         MW_ISOPND = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'ISOPNB' )
+         MW_ISOPNB = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'MACRN' )
+         MW_MACRN  = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'MVKN' )
+         MW_MVKN   = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'R4N2' )
+         MW_R4N2   = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'DHDN' )
+         MW_DHDN   = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'MONITS' )
+         MW_MONITS = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'MONITU' )
+         MW_MONITU = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'HONIT' )
+         MW_HONIT  = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'IONITA' )
+         MW_IONITA = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'MONITA' )
+         MW_MONITA = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'BrNO3' )
+         MW_BrNO3  = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'HOBr' )
+         MW_HOBr   = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'HBr' )
+         MW_HBr    = SC%SpcData(IND)%Info%MW_g
+
+#if defined( UCX )
+         IND       = Ind_( 'ClNO3' )
+         MW_ClNO3  = SC%SpcData(IND)%Info%MW_g
+
+         IND       = Ind_( 'HOCl' )
+         MW_HOCl   = SC%SpcData(IND)%Info%MW_g
+#endif
+
+         ! Reset flag
+         FIRST = .FALSE.
+
+      ENDIF
 
       !--------------------------------------------------------------------
       ! Get species concentrations [molec/cm3]
@@ -492,43 +602,43 @@ MODULE GCKPP_HETRATES
       !--------------------------------------------------------------------
       ! Calculate and pass het rates to the KPP rate array
       !--------------------------------------------------------------------
-      HET(ind_HO2,    1) = HetHO2(        3.30E1_fp, 2E-1_fp)
-      HET(ind_NO2,    1) = HetNO2(        4.60E1_fp, 1E-4_fp)
-      HET(ind_NO3,    1) = HetNO3(        6.20E1_fp, 1E-1_fp)
-      HET(ind_N2O5,   1) = HetN2O5(       1.08E2_fp, 1E-1_fp)
-      HET(ind_GLYX,   1) = HetGLYX(       5.80E1_fp, 1E-1_fp)
-      HET(ind_MGLY,   1) = HetMGLY(       7.20E1_fp, 1E-1_fp)
-      HET(ind_IEPOXA, 1) = HetIEPOX(      1.18E2_fp, 1E-1_fp)
-      HET(ind_IEPOXB, 1) = HetIEPOX(      1.18E2_fp, 1E-1_fp)
-      HET(ind_IEPOXD, 1) = HetIEPOX(      1.18E2_fp, 1E-1_fp)
-      HET(ind_IMAE,   1) = HetIMAE(       1.02E2_fp, 1E-1_fp)
-      HET(ind_LVOC,   1) = HetLVOC(       1.54E2_fp, 1E+0_fp)
-      HET(ind_ISN1OG, 1) = HetISN1OG(     2.26E2_fp, 1E+0_fp)
-      HET(ind_ISOPND, 1) = HetISOPND(     1.47E2_fp, 5E-3_fp)
-      HET(ind_ISOPNB, 1) = HetISOPNB(     1.47E2_fp, 5E-3_fp)
-      HET(ind_MACRN,  1) = HetMACRN(      1.49E2_fp, 5E-3_fp)
-      HET(ind_MVKN,   1) = HetMVKN(       1.49E2_fp, 5E-3_fp)
-      HET(ind_R4N2,   1) = HetR4N2(       1.19E2_fp, 5E-3_fp)
-      HET(ind_DHDN,   1) = HetDHDN(       2.26E2_fp, 5E-3_fp)
-      HET(ind_MONITS, 1) = HetMONITS(     2.15E2_fp, 1E-2_fp)
-      HET(ind_MONITU, 1) = HetMONITU(     2.15E2_fp, 1E-2_fp)
-      HET(ind_HONIT,  1) = HetHONIT(      2.15E2_fp, 1E-2_fp)
-      HET(ind_IONITA, 1) = HetIONITA(     1.40E1_fp, 1E-1_fp)
-      HET(ind_MONITA, 1) = HetMONITA(     1.40E1_fp, 1E-1_fp)
-      HET(ind_BrNO3,  1) = HetBrNO3(      1.42E2_fp, 3E-1_fp)
-      HET(ind_HOBr,   1) = HetHOBr(       0.97E2_fp, 2E-1_fp)
-      HET(ind_HBr,    1) = HetHBr(        0.81E2_fp, 2E-1_fp)
-      HET(ind_HOBr ,  2) = HetHOBr_ice(   0.97E2_fp, 1E-1_fp)
-      HET(ind_HBr,    2) = HetHBr_ice(    0.81E2_fp, 1E-1_fp)
+      HET(ind_HO2,    1) = HetHO2(        MW_HO2,    2E-1_fp)
+      HET(ind_NO2,    1) = HetNO2(        MW_NO2,    1E-4_fp)
+      HET(ind_NO3,    1) = HetNO3(        MW_NO3,    1E-1_fp)
+      HET(ind_N2O5,   1) = HetN2O5(       MW_N2O5,   1E-1_fp)
+      HET(ind_GLYX,   1) = HetGLYX(       MW_GLYX,   1E-1_fp)
+      HET(ind_MGLY,   1) = HetMGLY(       MW_MGLY,   1E-1_fp)
+      HET(ind_IEPOXA, 1) = HetIEPOX(      MW_IEPOXA, 1E-1_fp)
+      HET(ind_IEPOXB, 1) = HetIEPOX(      MW_IEPOXB, 1E-1_fp)
+      HET(ind_IEPOXD, 1) = HetIEPOX(      MW_IEPOXD, 1E-1_fp)
+      HET(ind_IMAE,   1) = HetIMAE(       MW_IMAE,   1E-1_fp)
+      HET(ind_LVOC,   1) = HetLVOC(       MW_LVOC,   1E+0_fp)
+      HET(ind_ISN1OG, 1) = HetISN1OG(     MW_ISN1OG, 1E+0_fp)
+      HET(ind_ISOPND, 1) = HetISOPND(     MW_ISOPND, 5E-3_fp)
+      HET(ind_ISOPNB, 1) = HetISOPNB(     MW_ISOPNB, 5E-3_fp)
+      HET(ind_MACRN,  1) = HetMACRN(      MW_MACRN,  5E-3_fp)
+      HET(ind_MVKN,   1) = HetMVKN(       MW_MVKN,   5E-3_fp)
+      HET(ind_R4N2,   1) = HetR4N2(       MW_R4N2,   5E-3_fp)
+      HET(ind_DHDN,   1) = HetDHDN(       MW_DHDN,   5E-3_fp)
+      HET(ind_MONITS, 1) = HetMONITS(     MW_MONITS, 1E-2_fp)
+      HET(ind_MONITU, 1) = HetMONITU(     MW_MONITU, 1E-2_fp)
+      HET(ind_HONIT,  1) = HetHONIT(      MW_HONIT,  1E-2_fp)
+      HET(ind_IONITA, 1) = HetIONITA(     MW_IONITA, 1E-1_fp)
+      HET(ind_MONITA, 1) = HetMONITA(     MW_MONITA, 1E-1_fp)
+      HET(ind_BrNO3,  1) = HetBrNO3(      MW_BrNO3,  3E-1_fp)
+      HET(ind_HOBr,   1) = HetHOBr(       MW_HOBr,   2E-1_fp)
+      HET(ind_HBr,    1) = HetHBr(        MW_HBr,    2E-1_fp)
+      HET(ind_HOBr ,  2) = HetHOBr_ice(   MW_HOBr,   1E-1_fp)
+      HET(ind_HBr,    2) = HetHBr_ice(    MW_HBr,    1E-1_fp)
 #if defined( UCX )
-      HET(ind_N2O5,   2) = HetN2O5_PSC(   1.08E2_fp, 0E+0_fp)
-      HET(ind_ClNO3,  1) = HetClNO3_PSC1( 0.97E2_fp, 0E+0_fp)
-      HET(ind_ClNO3,  2) = HetClNO3_PSC2( 0.97E2_fp, 0E+0_fp)
-      HET(ind_ClNO3,  3) = HetClNO3_PSC3( 0.97E2_fp, 0E+0_fp)
-      HET(ind_BrNO3,  2) = HetBrNO3_PSC(  1.42E2_fp, 0E+0_fp)
-      HET(ind_HOCl,   1) = HetHOCl_PSC1(  0.52E2_fp, 0E+0_fp)
-      HET(ind_HOCl,   2) = HetHOCl_PSC2(  0.52E2_fp, 0E+0_fp)
-      HET(ind_HOBr,   3) = HetHOBr_PSC(   0.97E2_fp, 0E+0_fp)
+      HET(ind_N2O5,   2) = HetN2O5_PSC(   MW_N2O5,   0E+0_fp)
+      HET(ind_ClNO3,  1) = HetClNO3_PSC1( MW_ClNO3,  0E+0_fp)
+      HET(ind_ClNO3,  2) = HetClNO3_PSC2( MW_ClNO3,  0E+0_fp)
+      HET(ind_ClNO3,  3) = HetClNO3_PSC3( MW_ClNO3,  0E+0_fp)
+      HET(ind_BrNO3,  2) = HetBrNO3_PSC(  MW_BrNO3,  0E+0_fp)
+      HET(ind_HOCl,   1) = HetHOCl_PSC1(  MW_HOCl,   0E+0_fp)
+      HET(ind_HOCl,   2) = HetHOCl_PSC2(  MW_HOCl,   0E+0_fp)
+      HET(ind_HOBr,   3) = HetHOBr_PSC(   MW_HOBr,   0E+0_fp)
 #endif
 
       !--------------------------------------------------------------------
@@ -1099,9 +1209,7 @@ MODULE GCKPP_HETRATES
       INTEGER  :: N
       REAL(fp) :: XSTKCF, ADJUSTEDRATE
       REAL(fp) :: TMP1,   TMP2
-!
-! !DEFINED PARAMETERS:
-!
+
       ! Initialize
       HET_N2O5     = 0.0_fp
       ADJUSTEDRATE = 0.0_fp
@@ -1397,8 +1505,7 @@ MODULE GCKPP_HETRATES
       INTEGER  :: N
       REAL(fp) :: XSTKCF, ADJUSTEDRATE
 
-      REAL(fp) :: HSTAR,    H_PLUS,   MSO4,   MNO3,   MHSO4 
-      REAL(fp) :: K_HPLUS,  K_NUC,    K_HSO4, K_HYDRO
+      REAL(fp) :: HSTAR, K_HPLUS, K_NUC, K_HSO4, K_HYDRO
 
       ! Initialize
       HET_IEPOX    = 0.0_fp
@@ -1414,20 +1521,15 @@ MODULE GCKPP_HETRATES
          ! Only consider inorganic aqueous aerosols with RH > 35%.
          IF ( N == 8 .and. RELHUM >= CRITRH ) THEN
 
-            ! Replace all of this with a constant value
-            ! (eam, 03/2015)
             ! Define Henry's Law constant.
-            ! Changes H* for IEPOX again to accommodate
-            ! reduction in yields of RIP, precursor
-            ! of IEPOX (eam, 07/2015):
-            HSTAR = HSTAR_EPOX  ! (Nguyen et al., 2014)
+            HSTAR = 1.7e+8_fp  ! (Gaston et al., 2014)
 
             ! Define first-order particle phase reaction rates 
             ! specific to IEPOX (from Gaston et al., 2014):
             K_HPLUS = 3.6e-2_fp   ! Alternate: 1.2d-3 (Edding)
             K_NUC   = 2.e-4_fp    ! Alternate: 5.2d-1 (Piletic)
             K_HSO4  = 7.3e-4_fp
-            K_HYDRO = 0.e0_fp
+            K_HYDRO = 0.0e+0_fp
 
             ! Get GAMMA for IEPOX hydrolysis:
             XSTKCF = EPOXUPTK( XAREA(N), XRADI(N),            &
@@ -1502,8 +1604,7 @@ MODULE GCKPP_HETRATES
       INTEGER  :: N
       REAL(fp) :: XSTKCF, ADJUSTEDRATE
 
-      REAL(fp) :: HSTAR,    H_PLUS,   MSO4,   MNO3,   MHSO4 
-      REAL(fp) :: K_HPLUS,  K_NUC,    K_HSO4, K_HYDRO
+      REAL(fp) :: HSTAR, K_HPLUS, K_NUC, K_HSO4, K_HYDRO
 
       ! Initialize
       HET_IMAE     = 0.0_fp
@@ -1519,32 +1620,22 @@ MODULE GCKPP_HETRATES
          ! Only consider inorganic aqueous aerosols with RH > 35%.
          IF ( N == 8 .and. RELHUM >= CRITRH ) THEN
 
-            ! Replace all of this with a constant value
-            ! (eam, 03/2015)
             ! Define Henry's Law constant.
-            ! Changes H* for IEPOX again to accommodate
-            ! reduction in yields of RIP, precursor
-            ! of IEPOX (eam, 07/2015):
-            HSTAR = HSTAR_EPOX  ! (Nguyen et al., 2014)
+            HSTAR = 1.2e+5_fp ! (Pye et al., 2013)
 
             ! Define first-order particle phase reaction rates 
-            ! specific to IEPOX (from Gaston et al., 2014):
-            K_HPLUS = 3.6e-2_fp   ! Alternate: 1.2d-3 (Edding)
-            K_NUC   = 2.e-4_fp    ! Alternate: 5.2d-1 (Piletic)
-            K_HSO4  = 7.3e-4_fp
-            K_HYDRO = 0.e+0_fp
+            ! specific to IMAE (from Pye et al., 2014):
+            K_HPLUS = 1.2e-3_fp  ! 30x slower than IEPOX (Piletic et al., 2013)
+            K_NUC   = 6.7e-6_fp  ! Assume others are also 30x slower.
+            K_HSO4  = 2.4e-5_fp
+            K_HYDRO = 0.0e+0_fp
 
-            ! Get GAMMA for IEPOX hydrolysis:
+            ! Get GAMMA for IMAE hydrolysis:
             XSTKCF = EPOXUPTK( XAREA(N), XRADI(N),            &
                                TEMPK,    (A**0.5_fp),         &
                                HSTAR,    K_HPLUS,    H_PLUS,  &
                                K_NUC,    MSO4,       MNO3,    &
                                K_HSO4,   MHSO4,      K_HYDRO )
-
-            ! Scale down gamma if H+ > 8d-5 (Riedel et al., 2015)
-            IF ( H_PLUS .gt. 8.e-5_fp ) THEN
-               XSTKCF = XSTKCF / 30.e+0_fp
-            ENDIF
 
          ENDIF
 
@@ -3015,6 +3106,7 @@ MODULE GCKPP_HETRATES
 ! !USES:
 !
       USE Input_Opt_Mod, ONLY : OptInput
+      Use PhysConstants, ONLY : AVO, RGASLATM
 !
 ! !INPUT PARAMETERS: 
 !
@@ -3073,13 +3165,8 @@ MODULE GCKPP_HETRATES
 !
 ! !DEFINED PARAMETERS:
 !
-      !%%% NOTE: WE SHOULD EVENTUALLY USE THE VALUES FROM physconsts.F %%%
-
-      ! Avogadro's number
-      REAL(fp),  PARAMETER :: Na = 6.022e+23_fp
-
-      ! Ideal gas constant [atm cm3/mol/K], Raq
-      REAL(fp),  PARAMETER :: Raq=82.e+0_fp
+      ! Ideal gas constant [atm cm3/mol/K]
+      REAL(fp),  PARAMETER :: Raq = RGASLATM * 1e+3_fp
 
       !=================================================================
       ! HO2 begins here!
@@ -3176,7 +3263,7 @@ MODULE GCKPP_HETRATES
             !use quadratic formula to obtain [O2-] in particle of radius RADIUS
             A = -2e+0_fp * kaq
             B = -3e+0_fp * kmt / RADIUS / (H_eff * 0.082 * TEMP)
-            C =  3e+0_fp * kmt * HO2DENS * 1000e+0_fp / RADIUS / Na
+            C =  3e+0_fp * kmt * HO2DENS * 1000e+0_fp / RADIUS / AVO
 
             ! Error check that B^2-(4e+0_fp*A*C) is not negative
             TEST= B**2-(4e+0_fp*A*C)
@@ -3187,7 +3274,7 @@ MODULE GCKPP_HETRATES
                 o2_ss= ( -B  -sqrt(B**2-(4e+0_fp*A*C)) )/(2e+0_fp*A)
 
                 ! Calculate the reactive flux
-                fluxrxn = kmt*HO2DENS - o2_ss*Na*kmt/H_eff/Raq/TEMP
+                fluxrxn = kmt*HO2DENS - o2_ss*AVO*kmt/H_eff/Raq/TEMP
 
                 IF ( fluxrxn <= 0e0_fp ) THEN
                    GAMMA = 0e+0_fp
@@ -3255,6 +3342,8 @@ MODULE GCKPP_HETRATES
 ! !USES:
 !
       USE Input_Opt_Mod, ONLY : OptInput
+      USE PhysConstants, ONLY : RGASLATM
+      USE ERROR_MOD,     ONLY : IT_IS_NAN
 !
 ! !INPUT PARAMETERS: 
 !
@@ -3301,6 +3390,7 @@ MODULE GCKPP_HETRATES
       REAL(fp)             :: KPART    ! Particle-phase reaction rate [1/s]
       REAL(fp)             :: XMMS     ! Mean molecular speed [cm/s]
       REAL(fp)             :: VAL1, VAL2, VAL3  ! Terms for calculating GAMMA
+      REAL(fp)             :: VALTMP
 !
 ! !DEFINED PARAMETERS:
 !
@@ -3314,8 +3404,15 @@ MODULE GCKPP_HETRATES
       ! EPOXUPTK begins here!
       !=================================================================
 
-      ! Initialize GAMMA:
-      GAMMA = 0.0_fp
+      ! Initialize
+      GAMMA  = 0.0_fp
+      AERVOL = 0.0_fp
+      KPART  = 0.0_fp
+      XMMS   = 0.0_fp
+      VAL1   = 0.0_fp
+      VAL2   = 0.0_fp
+      VAL3   = 0.0_fp
+      VALTMP = 0.0_fp
       
       ! Calculate aerosol volume (use formula in aerosol_mod.F):
       AERVOL = (AERAREA * AERRAD)/3.0e+0_fp
@@ -3325,7 +3422,7 @@ MODULE GCKPP_HETRATES
 
       ! Calculate first-order particle-phase reaction rate:
       ! (assume [H+] = proton activity)
-      ! k_hydro is only important for alkylnitrates.
+      ! KHYDRO is only important for alkylnitrates (not currently used).
       KPART = ( KHPLUS*HPLUS )               + &
               ( KNUC*HPLUS*( NITR + SULF ) ) + &
               ( KGACID*BISULF )              + &
@@ -3337,23 +3434,21 @@ MODULE GCKPP_HETRATES
       ! Calculate the second uptake parameterization term:
       VAL2 = ( 1.e+0_fp/MACOEFF )
 
+      ! Calculate the third uptake parameterization term:
+      VALTMP = ( 4.e+0_fp * AERVOL * RGASLATM * TEMP * HENRY * KPART ) / &
+               ( AERAREA * XMMS )
+      IF ( VALTMP .GT. 0 ) THEN
+         VAL3 = 1.e+0_fp / VALTMP
+      ELSE
+         VAL3 = 0.0e+0_fp
+      ENDIF
+
       ! Account for small reaction rates:
       IF ( KPART .LT. 1.e-8_fp ) THEN
 
-         ! Avoid div by zero (don't calculate 3rd variable). This is only
-         ! really an issue at the first time step when ISORROPIA values are 
-         ! zero, as ISORROPIA is called after PHYSPROC and CALCRATE.
-         VAL3 = 0.0e+0_fp
-
-         ! Return very small gamma value:
          GAMMA = TINY(1e+0_fp)
 
       ELSE
-
-         ! Calculate 3rd variable:
-         VAL3 = 1.e+0_fp/ &
-            ( ( 4.e+0_fp * AERVOL * RGASLATM * TEMP * HENRY * KPART ) / &
-            ( AERAREA * XMMS ) )
          
          ! Calculate the uptake coefficient:
          GAMMA = 1.e+0_fp/( VAL1 + VAL2 + VAL3 )
@@ -3362,7 +3457,7 @@ MODULE GCKPP_HETRATES
 
       ! Fail safes for negative, very very small, and NAN GAMMA values:
       IF ( GAMMA  .lt. 0.0e+0_fp )    GAMMA = TINY(1e+0_fp)
-      !IF ( IT_IS_NAN( GAMMA ) )       GAMMA = TINY(1e+0_fp)
+      IF ( IT_IS_NAN( GAMMA ) )       GAMMA = TINY(1e+0_fp)
       IF ( GAMMA .lt. TINY(1e+0_fp) ) GAMMA = TINY(1e+0_fp)
 
       END FUNCTION EPOXUPTK
@@ -3387,6 +3482,7 @@ MODULE GCKPP_HETRATES
 ! !USES:
 !
       USE State_Met_Mod, ONLY : MetState
+      USE PhysConstants, ONLY : RSTARG, PI
 !
 ! !INPUT PARAMETERS:
 !
@@ -3443,13 +3539,11 @@ MODULE GCKPP_HETRATES
       ! Cloud droplet radius in marine warm clouds [cm]
       REAL(fp), PARAMETER :: XCLDR_MARI = 10.e-4_fp
 
-      !%%% NOTE: WE SHOULD EVENTUALLY USE THE VALUES FROM physconsts.F %%%
+      ! Sticking coefficient
+      REAL(fp), PARAMETER :: alpha = 0.3_fp
 
-      REAL(fp), PARAMETER :: R = 8.314472                  ! [J/mol/K]
-      REAL(fp), PARAMETER :: mw_brno3 = 0.142              ! [kg/mol]
-      rEAL(fp), PARAMETER :: pi = 3.14159265358979323846e+0_fp ! [unitless]
-      REAL(fp), PARAMETER :: alpha = 0.3                   ! sticking coefficient
-      REAL(fp), PARAMETER :: dens_h2o = 0.001e+0_fp            ! [kg/cm3]
+      ! Density of H2O [kg/cm3]
+      REAL(fp), PARAMETER :: dens_h2o = 0.001e+0_fp
 !
 ! !LOCAL VARIABLES:
 !
@@ -3535,7 +3629,8 @@ MODULE GCKPP_HETRATES
       !   calculate the mean molecular speed of the
       !   molecules given the temperature.
       ! ----------------------------------------------
-      nu   = sqrt( 8.e+0_fp * R * T(I,J,L) / (mw_brno3 * pi) )
+      nu   = sqrt( 8.e+0_fp * RSTARG * T(I,J,L) / &
+                   ((MW_BrNO3*1.e-3_fp) * PI) )
 
       ! ----------------------------------------------
       ! Test conditions to see if we want to continue
@@ -3657,7 +3752,7 @@ MODULE GCKPP_HETRATES
       !
       !   (b) calculate the hydrolysis rxn rate.
       ! ----------------------------------------------------
-      SQM = sqrt(mw_brno3 * 1.e+3_fp)    ! square root of molar mass [g/mole]
+      SQM = sqrt(MW_BRNO3) ! square root of molar mass [g/mole]
       STK = sqrt(T(I,J,L)) ! square root of temperature [K]
 
       ! DFKG = Gas phase diffusion coeff [cm2/s] (order of 0.1)

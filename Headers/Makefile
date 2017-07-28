@@ -58,6 +58,8 @@
 #  08 Jan 2016 - E. Lundgren - Move CMN_GCTM_mod.F to obsolete/ dir and replace
 #                              with physconstants.F
 #  30 Jun 2016 - M. Sulprizio- Remove comode_loop_mod.F
+#  05 Jul 2017 - R. Yantosca - Add state_diag_mod.F90
+#  13 Jul 2017 - E. Lundgren - Remove passive_species_mod.F90
 #EOP
 #------------------------------------------------------------------------------
 #BOC
@@ -178,16 +180,23 @@ state_chm_mod.o        : state_chm_mod.F90        \
                          species_mod.o            \
                          species_database_mod.o
 
+state_diag_mod.o       : state_diag_mod.F90       \
+                         errcode_mod.o            \
+                         precision_mod.o          \
+                         input_opt_mod.o          \
+                         registry_mod.o
+
 state_met_mod.o        : state_met_mod.F90        \
                          errcode_mod.o            \
                          CMN_SIZE_mod.o           \
-                         precision_mod.o
-
-passive_species_mod.o  : passive_species_mod.F90  \
-                         errcode_mod.o            \
-                         precision_mod.o
+                         precision_mod.o          \
+                         registry_mod.o
 
 physconstants.o        : physconstants.F          \
+                         precision_mod.o
+
+registry_mod.o         : registry_mod.F90         \
+                         errcode_mod.o            \
                          precision_mod.o
 
 species_mod.o          : species_mod.F90          \
@@ -197,7 +206,6 @@ species_mod.o          : species_mod.F90          \
 species_database_mod.o : species_database_mod.F90 \
                          errcode_mod.o            \
                          input_opt_mod.o          \
-                         passive_species_mod.o    \
                          precision_mod.o          \
                          species_mod.o
 
