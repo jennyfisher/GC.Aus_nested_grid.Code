@@ -1645,6 +1645,10 @@ CONTAINS
 #elif defined( GRID05x0625   ) && defined( NESTED_NA )
     REAL*8, PARAMETER     :: ANN_AVG_FLASHRATE = 6.9683646d0
 
+!!! KLUDGE TO BE FIXED -- UPDATE FOR AUSTRALIA!!
+#elif defined( GRID025x03125 ) && defined( NESTED_AU )
+    REAL*8, PARAMETER     :: ANN_AVG_FLASHRATE = 6.7167603d0
+
 #endif
 
     ! Are we using GEOS 5.2.0 or GEOS 5.1.0?
@@ -1706,7 +1710,8 @@ CONTAINS
     ! met fields become available (ltm, 2014-12-10).
     IF ( ( cYr .eq. 2012 .and. cMt .ge. 4  ) .or. &
          ( cYr .eq. 2013                   ) .or. &
-         ( cYr .eq. 2014 .and. cMt .le. 10 ) ) THEN
+!!!!         ( cYr .eq. 2014 .and. cMt .le. 10 ) ) THEN
+         ( cYr .eq. 2015 .and. cMt .le. 10 ) ) THEN
        BETA = ANN_AVG_FLASHRATE / 82.373293d0
     ENDIF
 
@@ -1721,7 +1726,8 @@ CONTAINS
     ! met fields become available (ltm, 2014-12-10).
     IF ( ( cYr .eq. 2012 .and. cMt .ge. 4  ) .or. &
          ( cYr .eq. 2013                   ) .or. &
-         ( cYr .eq. 2014 .and. cMt .le. 10 ) ) THEN
+!!!!         ( cYr .eq. 2014 .and. cMt .le. 10 ) ) THEN
+         ( cYr .eq. 2015 .and. cMt .le. 10 ) ) THEN
        BETA = ANN_AVG_FLASHRATE / 260.40253d0
     ENDIF
 
@@ -1753,6 +1759,16 @@ CONTAINS
          ( cYr .eq. 2014 .and. cMt .le. 10 ) ) THEN
        BETA = ANN_AVG_FLASHRATE / 720.10258d0
     ENDIF
+
+!!! KLUDGE TO BE FIXED -- UPDATE FOR AUSTRALIA!!
+#elif defined( GEOS_FP ) && defined( GRID025x03125 ) && defined( NESTED_AU )
+
+    !---------------------------------------
+    ! GEOS-FP: Nested Australia simulation
+    !---------------------------------------
+
+    ! Kludge: for now use N. America value
+    BETA = ANN_AVG_FLASHRATE / 720.10258d0
 
 #elif defined( MERRA2 ) && defined( GRID05x0625  ) && defined( NESTED_NA )
 

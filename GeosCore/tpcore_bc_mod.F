@@ -158,6 +158,7 @@
 !  23 Jun 2016 - R. Yantosca - Remove references to APM code; it is no longer
 !                              compatible with the FlexChem implementation
 !  29 Nov 2016 - R. Yantosca - grid_mod.F90 is now gc_grid_mod.F90
+!  27 Jun 2017 - J. Fisher   - add Australian nest
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -181,6 +182,7 @@
       ! BC_CU    : Array containing CU tracers on coarse grid
       ! BC_NA    : Array containing NA tracers on coarse grid
       ! BC_EU    : Array containing EU tracers on coarse grid
+      ! BC_AU    : Array containing AU tracers on coarse grid
       ! BC_CH    : Array containing CH tracers on coarse grid
       ! BC_AS    : Array containing AS tracers on coarse grid
       ! MAP1x1   : Mapping array from 1x1 -> 4x5 grid
@@ -194,6 +196,8 @@
       INTEGER              :: I2_BC_NA, J2_BC_NA, IM_BC_NA, JM_BC_NA
       INTEGER              :: I0_BC_EU, J0_BC_EU, I1_BC_EU, J1_BC_EU
       INTEGER              :: I2_BC_EU, J2_BC_EU, IM_BC_EU, JM_BC_EU
+      INTEGER              :: I0_BC_AU, J0_BC_AU, I1_BC_AU, J1_BC_AU
+      INTEGER              :: I2_BC_AU, J2_BC_AU, IM_BC_AU, JM_BC_AU
       INTEGER              :: I0_BC_CH, J0_BC_CH, I1_BC_CH, J1_BC_CH
       INTEGER              :: I2_BC_CH, J2_BC_CH, IM_BC_CH, JM_BC_CH
       INTEGER              :: I0_BC_AS, J0_BC_AS, I1_BC_AS, J1_BC_AS
@@ -205,6 +209,7 @@
       INTEGER              :: IU_BC_CU   ! LUN for output BC's, Custom grid
       INTEGER              :: IU_BC_NA   ! LUN for output BC's, N. Amer. grid
       INTEGER              :: IU_BC_EU   ! LUN for output BC's, Europe grid
+      INTEGER              :: IU_BC_AU   ! LUN for output BC's, Australia grid
       INTEGER              :: IU_BC_CH   ! LUN for output BC's, China grid
       INTEGER              :: IU_BC_AS   ! LUN for output BC's, Asia grid
  
@@ -214,6 +219,7 @@
       REAL*4,  ALLOCATABLE :: BC_CU (:,:,:,:)
       REAL*4,  ALLOCATABLE :: BC_NA (:,:,:,:)
       REAL*4,  ALLOCATABLE :: BC_EU (:,:,:,:)
+      REAL*4,  ALLOCATABLE :: BC_AU (:,:,:,:)
       REAL*4,  ALLOCATABLE :: BC_CH (:,:,:,:)
       REAL*4,  ALLOCATABLE :: BC_AS (:,:,:,:)
 
@@ -300,7 +306,9 @@
 !     WINDOW = 2 : Save BC's to file (North America window, aka "NA")
 !     WINDOW = 3 : Save BC's to file (Europe window,        aka "EU")
 !     WINDOW = 4 : Save BC's to file (China/SE Asia window, aka "CH")
-!     WINDOW = 5 : Read BC's from file
+!     WINDOW = 5 : Save BC's to file (Asia window,          aka "AS")
+!     WINDOW = 6 : Save BC's to file (Australia window,     aka "AU")
+!     WINDOW = 7 : Read BC's from file
 !
 ! !REVISION HISTORY: 
 !  07 Mar 2003 - R. Yantosca - Initial version
@@ -336,11 +344,13 @@
       IF ( ITS_A_NEW_DAY(.TRUE.) ) THEN
 
          ! File name for BC's
-         IF ( WINDOW .eq. 6 ) THEN
+         IF ( WINDOW .eq. 7 ) THEN
 #if   defined( NESTED_NA )
             FILENAME = TRIM( Input_Opt%TPBC_DIR_NA ) // 'BC.YYYYMMDD' ! Input file, NA
 #elif defined( NESTED_EU )
             FILENAME = TRIM( Input_Opt%TPBC_DIR_EU ) // 'BC.YYYYMMDD' ! Input file, EU
+#elif defined( NESTED_AU )
+            FILENAME = TRIM( Input_Opt%TPBC_DIR_AU ) // 'BC.YYYYMMDD' ! Input file, AU
 #elif defined( NESTED_CH )
             FILENAME = TRIM( Input_Opt%TPBC_DIR_CH ) // 'BC.YYYYMMDD' ! Input file, CH
 #elif defined( NESTED_AS )
@@ -356,6 +366,8 @@
             FILENAME = TRIM( Input_Opt%TPBC_DIR_CH ) // 'BC.YYYYMMDD' ! Output file, CH
          ELSEIF ( WINDOW .eq. 5 ) THEN
             FILENAME = TRIM( Input_Opt%TPBC_DIR_AS ) // 'BC.YYYYMMDD' ! Output file, AS
+         ELSEIF ( WINDOW .eq. 6 ) THEN
+            FILENAME = TRIM( Input_Opt%TPBC_DIR_AU ) // 'BC.YYYYMMDD' ! Output file, AU
          ENDIF
          
          ! Replace YYYYMMDD with the actual date
@@ -364,7 +376,7 @@
          ! FORMAT string for use below
  100     FORMAT( '     - OPEN_BC_FILE: Opening ', a, ' on unit ', i4 )
 
-         IF ( WINDOW .eq. 6 ) THEN
+         IF ( WINDOW .eq. 7 ) THEN
 
             !----------------------------------------------------------
             ! WINDOW == 6 : Read BC's from file
@@ -479,6 +491,25 @@
                CALL OPEN_BPCH2_FOR_WRITE( IU_BC_AS, FILENAME )
             ENDIF
 
+         ELSE IF ( WINDOW .eq. 6 ) THEN
+
+            !----------------------------------------------------------
+            ! WINDOW == 6 : Save BC's to file (Australia window)
+            !----------------------------------------------------------
+            IF ( PRESENT( FOR_WRITE ) ) THEN
+
+               ! Close previously opened file
+               INQUIRE( IU_BC_AU, OPENED=IS_OPEN )
+               IF ( IS_OPEN ) CLOSE( IU_BC_AU )
+
+               ! Find a free LUN
+               IU_BC_AU = findFreeLun()
+
+               ! Open file for output
+               WRITE( 6, 100 ) TRIM( FILENAME ), IU_BC_AU
+               CALL OPEN_BPCH2_FOR_WRITE( IU_BC_AU, FILENAME )
+            ENDIF
+
          ENDIF
 
       ENDIF
@@ -566,6 +597,7 @@
       LOGICAL              :: LWINDO_CH
       LOGICAL              :: LWINDO_AS
       LOGICAL              :: LWINDO_EU
+      LOGICAL              :: LWINDO_AU
       INTEGER              :: HALFPOLAR
       INTEGER              :: I, IOS, J, L, N, IC, NA, nAdvect
       REAL(f4)             :: LONRES, LATRES
@@ -597,6 +629,7 @@
       LWINDO_CH = Input_Opt%LWINDO_CH
       LWINDO_AS = Input_Opt%LWINDO_AS
       LWINDO_EU = Input_Opt%LWINDO_EU
+      LWINDO_AU = Input_Opt%LWINDO_AU
 
       ! Return if it's not time to write data to disk
       IF ( .not. ITS_TIME_FOR_BC() ) RETURN
@@ -619,7 +652,7 @@
       nAdvect   = State_Chm%nAdvect
 
       ! Loop over the possible combinations of nested grids
-      DO IC = 1, 5
+      DO IC = 1, 6
          IF ((IC .eq. 1) .and. LWINDO_CU )THEN
 
             !----------------------------------------------------------
@@ -820,6 +853,46 @@
             STAMP = TIMESTAMP_STRING()
             WRITE( 6, 114 ) STAMP
 
+         ELSEIF ((IC .eq. 6) .and. LWINDO_AU )THEN
+
+            !----------------------------------------------------------
+            ! IC == 6 : Save BC's to file (Australia window)
+            !----------------------------------------------------------
+
+            ! Open file for writing, if necessary
+            CALL OPEN_BC_FILE( am_I_Root, Input_Opt, RC, 
+     &                         WINDOW=IC, FOR_WRITE=.TRUE. )
+
+            ! Loop over each advected species
+            DO NA = 1, nAdvect
+
+               ! Get the species ID from the advected species ID
+               N = State_Chm%Map_Advect(NA)
+
+               ! Save concentrations in WINDOW REGION to disk
+               DO L = 1, LLPAR
+                  BC_AU(1:IM_BC_AU,1:JM_BC_AU,L,N) =
+     &               Spc(I1_BC_AU:I2_BC_AU,J1_BC_AU:J2_BC_AU,L,N)
+               ENDDO
+ 
+               ! Write boundary conditions to binary punch file
+               CALL BPCH2( IU_BC_AU,  MODELNAME,
+     &                     LONRES,    LATRES,
+     &                     HALFPOLAR, CENTER180,
+     &                     CATEGORY,  N,
+     &                     UNIT,      TAU,
+     &                     TAU,       RESERVED,
+     &                     IM_BC_AU,  JM_BC_AU,
+     &                     LLPAR,     I1_BC_AU,
+     &                     J1_BC_AU,  1,
+     &                     BC_AU(1:IM_BC_AU, 1:JM_BC_AU, 1:LLPAR, N) )
+
+            ENDDO
+
+            ! Echo info
+            STAMP = TIMESTAMP_STRING()
+            WRITE( 6, 115 ) STAMP
+
          ENDIF
       ENDDO
 
@@ -832,6 +905,7 @@
  112  FORMAT( '     - SAVE_GLOBAL_TPCORE_BC: Wrote EU BC''s at ', a )
  113  FORMAT( '     - SAVE_GLOBAL_TPCORE_BC: Wrote CH BC''s at ', a )
  114  FORMAT( '     - SAVE_GLOBAL_TPCORE_BC: Wrote AS BC''s at ', a )
+ 115  FORMAT( '     - SAVE_GLOBAL_TPCORE_BC: Wrote AU BC''s at ', a )
 
       END SUBROUTINE SAVE_GLOBAL_TPCORE_BC
 !EOC
@@ -1084,6 +1158,7 @@
       ! Scalars
       LOGICAL :: LWINDO_NA
       LOGICAL :: LWINDO_EU
+      LOGICAL :: LWINDO_AU
       LOGICAL :: LWINDO_CH
       LOGICAL :: LWINDO_AS
       LOGICAL :: LWINDO_CU
@@ -1098,11 +1173,12 @@
       ! Copy values from Input_Opt
       LWINDO_NA = Input_Opt%LWINDO_NA
       LWINDO_EU = Input_Opt%LWINDO_EU
+      LWINDO_AU = Input_Opt%LWINDO_AU
       LWINDO_CH = Input_Opt%LWINDO_CH
       LWINDO_AS = Input_Opt%LWINDO_AS
       LWINDO_CU = Input_Opt%LWINDO_CU
 
-#if   defined( NESTED_CH ) || defined( NESTED_NA ) || defined( NESTED_EU ) || defined( NESTED_AS ) || defined( NESTED_CU )
+#if   defined( NESTED_CH ) || defined( NESTED_NA ) || defined( NESTED_EU ) || defined( NESTED_AS ) || defined( NESTED_CU ) || defined ( NESTED_AU )
       BC = 0e+0_fp
 #endif
 
@@ -1116,6 +1192,10 @@
 
       IF ( LWINDO_EU ) THEN
          BC_EU = 0e+0_fp
+      ENDIF 
+ 
+      IF ( LWINDO_AU ) THEN
+         BC_AU = 0e+0_fp
       ENDIF 
  
       IF ( LWINDO_CH ) THEN
@@ -1216,7 +1296,7 @@
 
          ! Open boundary conditions file (if necessary) 
          CALL OPEN_BC_FILE( am_I_Root, Input_Opt, RC, 
-     &                      WINDOW=6,  FOR_READ=.TRUE. )
+     &                      WINDOW=7,  FOR_READ=.TRUE. )
 
          ! Initialize # of tracers found
          NFOUND = 0
@@ -1383,14 +1463,29 @@
                MAP1x1(I,J,1) = II
                MAP1x1(I,J,2) = 0
                EXIT
+            !! Special treatment for easternmost 4x5 box
+            ELSE IF ( X == XE4x5(II) .and. II == 72) THEN
+               MAP1x1(I,J,1) = II
+               MAP1x1(I,J,2) = 0
+               EXIT
             ELSE IF ( X == XE4x5(II) .and. I .ne. 1) THEN
                MAP1x1(I,J,1) = II - 1
                MAP1x1(I,J,2) = II
+               EXIT
+            !! Special treatment for easternmost 4x5 box
+            ELSE IF ( X == XE4x5(II+1) .and. II == 72) THEN
+               MAP1x1(I,J,1) = II
+               MAP1x1(I,J,2) = 0
                EXIT
             ELSE IF ( X == XE4x5(II+1) ) THEN
                MAP1x1(I,J,1) = II
                MAP1x1(I,J,2) = II + 1
                EXIT
+            !! Special treatment for easternmost 4x5 box
+            !! JAF test -- for eastern edge, can we just repeat last box?
+            ELSE IF ( X > XE4x5(II+1) .and. II == 72 ) THEN
+               MAP1x1(I,J,1) = II
+               MAP1x1(I,J,2) = 0
             ENDIF
 
          ENDDO
@@ -1851,6 +1946,7 @@
       ! For values from Input_Opt
       LOGICAL :: LWINDO,    LWINDO_NA,  LWINDO_CU
       LOGICAL :: LWINDO_EU, LWINDO_CH,  LWINDO_AS
+      LOGICAL :: LWINDO_AU
       LOGICAL :: LWINDO2x25
       INTEGER :: nAdvect
 
@@ -1863,6 +1959,7 @@
       LWINDO_NA  = Input_Opt%LWINDO_NA
       LWINDO_CU  = Input_Opt%LWINDO_CU
       LWINDO_EU  = Input_Opt%LWINDO_EU
+      LWINDO_AU  = Input_Opt%LWINDO_AU
       LWINDO_CH  = Input_Opt%LWINDO_CH
       LWINDO_AS  = Input_Opt%LWINDO_AS
       LWINDO2x25 = Input_Opt%LWINDO2x25
@@ -2014,9 +2111,42 @@
       IM_BC_EU = I2_BC_EU - I1_BC_EU + 1
       JM_BC_EU = J2_BC_EU - J1_BC_EU + 1
  
-      ! TPCORE NA internal transport window offset
+      ! TPCORE EU internal transport window offset
       I0_BC_EU = I1_BC_EU - 1
       J0_BC_EU = J1_BC_EU - 1
+
+      !-----------------------------------------------------------------
+      !         ****** BC REGION FOR AUSTRALIA NESTED GRID ******
+      !-----------------------------------------------------------------
+      IF ( .not. LWINDO2x25 ) THEN
+
+#if   defined( GRID4x5 ) || defined( NESTED_AU )
+         !%%%%% 4x5 BC REGION FOR AUSTRALIA NESTED GRID %%%%%
+         I1_BC_AU = 59                       ! 4x5  lon index, LL corner
+         J1_BC_AU = 11                       ! 4x5  lat index, LL corner
+         I2_BC_AU = 72                       ! 4x5  lon index, UR corner
+         J2_BC_AU = 22                       ! 4x5  lat index, UR corner
+#endif
+
+      ELSE
+
+#if   defined( GRID2x25 ) || defined( NESTED_AU )
+         !%%%%% 2x25 BC REGION FOR AUSTRALIA NESTED GRID %%%%%
+         I1_BC_AU = 117                      ! 2x25 lon index, LL corner
+         J1_BC_AU = 21                       ! 2x25 lat index, LL corner
+         I2_BC_AU = 144                      ! 2x25 lon index, UR corner
+         J2_BC_AU = 43                       ! 2x25 lat index, UR corner
+#endif
+
+      ENDIF
+ 
+      ! Extent of coarse-grid AU BC REGION
+      IM_BC_AU = I2_BC_AU - I1_BC_AU + 1
+      JM_BC_AU = J2_BC_AU - J1_BC_AU + 1
+ 
+      ! TPCORE AU internal transport window offset
+      I0_BC_AU = I1_BC_AU - 1
+      J0_BC_AU = J1_BC_AU - 1
 
       !-----------------------------------------------------------------
       !      ****** BC REGION FOR CHINA/SE ASIA NESTED GRID ******
@@ -2165,6 +2295,13 @@
          BC_EU = 0e+0_fp
       ENDIF
 
+      ! Boundary condition array for NESTED AUSTRALIA REGION
+      IF ( LWINDO_AU ) THEN
+         ALLOCATE( BC_AU( IM_BC_AU, JM_BC_AU, LLPAR, nAdvect ), STAT=AS)
+         IF ( AS /= 0 ) CALL ALLOC_ERR( 'BC_AU' )
+         BC_AU = 0e+0_fp
+      ENDIF
+
       ! If running a nested simulation, just allocate the custom BC
       ! array with nested dimensions
 #if   defined( NESTED_CH )
@@ -2215,6 +2352,18 @@
       I0_BC = I0_BC_EU
       J0_BC = J0_BC_EU
 
+#elif defined( NESTED_AU )
+
+      !%%%%% Define boundaries for NESTED AUSTRALIA GRID %%%%%
+      I1_BC = I1_BC_AU
+      J1_BC = J1_BC_AU
+      I2_BC = I2_BC_AU
+      J2_BC = J2_BC_AU
+      IM_BC = IM_BC_AU
+      JM_BC = JM_BC_AU
+      I0_BC = I0_BC_AU
+      J0_BC = J0_BC_AU
+
 #endif
 
       ALLOCATE( BC( IM_BC, JM_BC, LLPAR, nAdvect ), STAT=AS )
@@ -2257,6 +2406,7 @@
       IF ( ALLOCATED( BC_CU  ) ) DEALLOCATE( BC_CU  )
       IF ( ALLOCATED( BC_NA  ) ) DEALLOCATE( BC_NA  )
       IF ( ALLOCATED( BC_EU  ) ) DEALLOCATE( BC_EU  )
+      IF ( ALLOCATED( BC_AU  ) ) DEALLOCATE( BC_AU  )
       IF ( ALLOCATED( BC_CH  ) ) DEALLOCATE( BC_CH  )
       IF ( ALLOCATED( BC_AS  ) ) DEALLOCATE( BC_AS  )
       IF ( ALLOCATED( MAP1x1 ) ) DEALLOCATE( MAP1x1 )

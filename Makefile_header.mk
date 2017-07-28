@@ -224,7 +224,7 @@ ERR_MET              :="Select a met field: MET=gcap, MET=geos4, MET=geos5, MET=
 ERR_GRID             :="Select a horizontal grid: GRID=4x5. GRID=2x25, GRID=05x0666, GRID=05x0625, GRID=025x03125"
 
 # Error message for bad NEST input
-ERR_NEST             :="Select a nested grid: NEST=as, NEST=ch, NEST=eu, NEST=na, NEST=cu"
+ERR_NEST             :="Select a nested grid: NEST=as, NEST=ch, NEST=eu, NEST=na, NEST=au, NEST=cu"
 
 # Error message for bad two-way coupled model input (yanyy,6/18/14)
 ERR_COUPLECH         :="Select a coupled grid for China/SE Asia: COUPLECH=2x25ch, COUPLECH=4x5ch"
@@ -765,6 +765,12 @@ ifndef NO_GRID_NEEDED
     USER_DEFS        += -DNESTED_EU
   endif
 
+  # %%%%% Australia (AU) %%%%%
+  REGEXP             :=(^[Aa][Uu])
+  ifeq ($(shell [[ "$(NEST)" =~ $(REGEXP) ]] && echo true),true)
+    USER_DEFS        += -DNESTED_AU
+  endif
+
   # %%%%% North America (NA) %%%%%
   REGEXP             :=(^[Nn][Aa])
   ifeq ($(shell [[ "$(NEST)" =~ $(REGEXP) ]] && echo true),true)
@@ -779,7 +785,7 @@ ifndef NO_GRID_NEEDED
 
   # %%%%% ERROR CHECK!  Make sure our NEST selection is valid! %%%%%
   ifdef NEST_NEEDED
-    REGEXP           :=((\-DNESTED_)?AS|CH|EU|NA|CU)
+    REGEXP           :=((\-DNESTED_)?AS|CH|EU|NA|AU|CU)
     ifneq ($(shell [[ "$(USER_DEFS)" =~ $(REGEXP) ]] && echo true),true)
       $(error $(ERR_NEST))
     endif
@@ -1331,6 +1337,12 @@ ifeq ($(COMPILER_FAMILY),Intel)
   REGEXP             :=(^[Yy]|^[Yy][Ee][Ss])
   ifeq ($(shell [[ "$(TRACEBACK)" =~ $(REGEXP) ]] && echo true),true)
     FFLAGS           += -traceback
+  endif
+
+  # Also add option to use Broadwell architecture
+  REGEXP             :=(^[Yy]|^[Yy][Ee][Ss])
+  ifeq ($(shell [[ "$(BROADWELL)" =~ $(REGEXP) ]] && echo true),true)
+    FFLAGS           += -xCORE-AVX2
   endif
 
   # Compile for use with the GNU profiler (gprof), if necessary

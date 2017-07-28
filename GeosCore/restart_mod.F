@@ -621,9 +621,12 @@
          ierr = Nf_Inq_Varid (fId, v_name, v_id)
          IF ( ierr /= NF_NOERR ) THEN
             SpcInfo%Is_InRestart = .FALSE.
+            WRITE(6, 111), TRIM( SpcInfo%Name )
+111         FORMAT ('Species ', a8, ' not in restart file.')
          ELSE
             SpcInfo%Is_InRestart = .TRUE.
          ENDIF
+
 
          ! If data is in file, read in as [mol/mol] and convert to 
          ! [kg/kg dry]. Otherwise, set to background value [mol/mol]
@@ -659,6 +662,12 @@
                ! Apply minimum value threshold where input conc is very low
                IF ( Ptr3D(I,J,L) < SMALL_NUM ) THEN
                   Ptr3D(I,J,L) = SMALL_NUM
+               ENDIF
+               ! Alert if input conc is very high
+               !   should never be > 1mol/mol
+               IF ( Ptr3D(I,J,L) > 1d0 ) THEN
+                   MSG = '   Value in restart too high!'
+                  CALL ERROR_STOP( MSG, LOC )
                ENDIF
                State_Chm%Species(I,J,L,N) = Ptr3D(I,J,L) * MW_g / AIRMW
             ENDDO

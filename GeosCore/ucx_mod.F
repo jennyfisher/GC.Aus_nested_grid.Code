@@ -2067,10 +2067,14 @@
 110   FORMAT(121E10.3)
 #elif defined( GRID05x0625 )   && defined( NESTED_EU )
 110   FORMAT(81E10.3)
+#elif defined( GRID05x0625 )   && defined( NESTED_AU )
+110   FORMAT(89E10.3)
 #elif defined( GRID025x03125 ) && defined( NESTED_CH )
 110   FORMAT(161E10.3)
 #elif defined( GRID025x03125 ) && defined( NESTED_NA )
 110   FORMAT(202E10.3)
+#elif defined( GRID025x03125 ) && defined( NESTED_AU )
+110   FORMAT(177E10.3)
       ! dummy so that code works if none of the comp. switches is enabled
 #else
 110   FORMAT(300E10.3)
@@ -6517,6 +6521,8 @@
 110   FORMAT(121E10.3)
 #elif defined( GRID05x0666 )   && defined( NESTED_EU )
 110   FORMAT(81E10.3)
+#elif defined( GRID05x0625 )   && defined( NESTED_AU )
+110   FORMAT(89E10.3)
 #elif defined( GRID05x0625 )   && defined( NESTED_AS )
 110   FORMAT(133E10.3)
 #elif defined( GRID05x0625 )   && defined( NESTED_NA )
@@ -6527,6 +6533,8 @@
 110   FORMAT(161E10.3)
 #elif defined( GRID025x03125 ) && defined( NESTED_NA )
 110   FORMAT(202E10.3)
+#elif defined( GRID025x03125 ) && defined( NESTED_AU )
+110   FORMAT(177E10.3)
 #else
       ! use 2x25 as default 
 110   FORMAT(91E10.3)

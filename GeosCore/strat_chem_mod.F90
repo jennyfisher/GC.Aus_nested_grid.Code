@@ -1136,7 +1136,7 @@ CONTAINS
     ! Number of advected species
     nAdvect = State_Chm%nAdvect
 
-#if defined( NESTED_NA ) || defined( NESTED_CH ) || defined( NESTED_EU ) || defined( NESTED_AS )
+#if defined( NESTED_NA ) || defined( NESTED_CH ) || defined( NESTED_EU ) || defined( NESTED_AS ) || defined( NESTED_AU)
     ! This method only works for a global domain.
     ! It could be modified for nested domains if the total mass flux across the
     ! boundaries during the period is taken into account.
@@ -1975,6 +1975,8 @@ CONTAINS
       INTEGER, PARAMETER :: J30S = 1,  J30N = 41
 #elif defined( NESTED_EU )
       INTEGER, PARAMETER :: J30S = 1,  J30N = 1  ! add later-checked . it is ok Anna Prot
+#elif defined( NESTED_AU )
+      INTEGER, PARAMETER :: J30S = 1,  J30N = 89  ! add later-checked . it is ok Anna Prot
 #endif
 
 
@@ -1998,6 +2000,8 @@ CONTAINS
 !Anna Prot added 8 May 2015
 #elif defined( NESTED_EU )
     INTEGER, PARAMETER   :: J30S = 1, J30N = 115
+#elif defined( NESTED_AU )
+    INTEGER, PARAMETER   :: J30S = 1, J30N = 177
 #endif
 
 #elif defined( GRID1x1 ) 

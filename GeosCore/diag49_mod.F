@@ -334,6 +334,8 @@
       REAL(f8)                 :: TAU
       REAL(fp)                 :: TMP, SCALEAODnm
       REAL(fp)                 :: Q( ND49_NI, ND49_NJ, ND49_NL )
+      REAL(f4)                 :: Q_2D( ND49_NI, ND49_NJ, 1 )
+      REAL(f4)                 :: Q_3D( ND49_NI, ND49_NJ, ND49_NL )
       CHARACTER(LEN=16)        :: STAMP
       CHARACTER(LEN=40)        :: CATEGORY
       CHARACTER(LEN=40)        :: UNIT
@@ -1649,13 +1651,29 @@
          !==============================================================
          ! Save this data block to the ND49 timeseries file
          !==============================================================
+         ! Avoid array temporary - surface level only
+         IF ( GMNL == 1 ) THEN
+            Q_2D = REAL( Q(1:ND49_NI, 1:ND49_NJ, 1:1), 4 )
             CALL BPCH2( IU_ND49,      MODELNAME,    LONRES,   
      &        LATRES,       HALFPOLAR,    CENTER180, 
      &           CATEGORY,     GMTRC,        UNIT,      
      &           TAU,          TAU,          RESERVED,  
      &           ND49_NI,      ND49_NJ,      GMNL,  
      &           ND49_IMIN+I0, ND49_JMIN+J0, ND49_LMIN, 
-     &           REAL( Q(1:ND49_NI, 1:ND49_NJ, 1:GMNL),4 ) )
+     &           Q_2D )
+
+         ! Otherwise ND49_NL levels
+         ELSE
+            Q_3D = REAL( Q(1:ND49_NI, 1:ND49_NJ, 1:GMNL), 4 )
+            CALL BPCH2( IU_ND49,      MODELNAME,    LONRES,   
+     &        LATRES,       HALFPOLAR,    CENTER180, 
+     &           CATEGORY,     GMTRC,        UNIT,      
+     &           TAU,          TAU,          RESERVED,  
+     &           ND49_NI,      ND49_NJ,      GMNL,  
+     &           ND49_IMIN+I0, ND49_JMIN+J0, ND49_LMIN, 
+     &           Q_3D )
+!     &           REAL( Q(1:ND49_NI, 1:ND49_NJ, 1:GMNL),4 ) )
+         ENDIF
 
          ENDIF
 

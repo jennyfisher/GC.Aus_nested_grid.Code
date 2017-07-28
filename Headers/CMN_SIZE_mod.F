@@ -396,6 +396,29 @@
 #endif
       REAL(fpp),  PARAMETER :: PTOP       = 0.01e+0_fpp
 
+#elif defined( GEOS_FP ) && defined( GRID025x03125 ) && defined( NESTED_AU)
+
+      !-----------------------------------------------------------------
+      ! GEOS-FP Nested AU Grid
+      !-----------------------------------------------------------------
+      !!!ANZ!!!INTEGER               :: IGLOB      = 224
+      INTEGER               :: IGLOB      = 145
+      !!!ANZ!!!INTEGER               :: JGLOB      = 177
+      INTEGER               :: JGLOB      = 161
+      INTEGER               :: LGLOB      = 72
+#if   defined( GRIDREDUCED )
+      INTEGER               :: LLPAR      = 47        ! Reduced vertical grid
+      INTEGER,    PARAMETER :: LLTROP_FIX = 38        !  -- 47 levels
+      INTEGER,    PARAMETER :: LLTROP     = 38
+      INTEGER,    PARAMETER :: LLSTRAT    = 44
+#else
+      INTEGER               :: LLPAR                  ! Full vertical grid
+      INTEGER,    PARAMETER :: LLTROP_FIX = 40        !  -- 72 levels
+      INTEGER,    PARAMETER :: LLTROP     = 40
+      INTEGER,    PARAMETER :: LLSTRAT    = 59
+#endif
+      REAL(fpp),  PARAMETER :: PTOP       = 0.01e+0_fpp
+
 #elif defined( GEOS_FP ) && defined( GRID2x25 )
 
       !-----------------------------------------------------------------
@@ -487,6 +510,27 @@
       !-----------------------------------------------------------------
       INTEGER               :: IGLOB      = 129
       INTEGER               :: JGLOB      = 81
+      INTEGER               :: LGLOB      = 72
+#if   defined( GRIDREDUCED )
+      INTEGER               :: LLPAR      = 47        ! Reduced vertical grid
+      INTEGER,    PARAMETER :: LLTROP_FIX = 38        !  -- 47 levels
+      INTEGER,    PARAMETER :: LLTROP     = 38
+      INTEGER,    PARAMETER :: LLSTRAT    = 44
+#else
+      INTEGER               :: LLPAR                  ! Full vertical grid
+      INTEGER,    PARAMETER :: LLTROP_FIX = 40        !  -- 72 levels
+      INTEGER,    PARAMETER :: LLTROP     = 40
+      INTEGER,    PARAMETER :: LLSTRAT    = 59
+#endif
+      REAL(fpp),  PARAMETER :: PTOP       = 0.01e+0_fpp
+
+#elif defined( MERRA2 ) && defined( GRID05x0625 ) && defined( NESTED_AU)
+
+      !-----------------------------------------------------------------
+      ! MERRA2: Nested AU Grid
+      !-----------------------------------------------------------------
+      INTEGER               :: IGLOB      = 112
+      INTEGER               :: JGLOB      = 89
       INTEGER               :: LGLOB      = 72
 #if   defined( GRIDREDUCED )
       INTEGER               :: LLPAR      = 47        ! Reduced vertical grid

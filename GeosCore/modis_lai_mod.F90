@@ -798,7 +798,7 @@ CONTAINS
     !======================================================================
 
     ! Construct file path from directory & file name (use LAI directory)
-    nc_dir  = TRIM( Input_Opt%CHEM_INPUTS_DIR ) // 'MODIS_LAI_201204/'
+    nc_dir  = TRIM( Input_Opt%CHEM_INPUTS_DIR ) // 'MODIS_LAI_201707/'
 
     !======================================================================
     ! Read current month's LAI or CHLR

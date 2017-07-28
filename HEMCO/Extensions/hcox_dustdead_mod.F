@@ -5524,6 +5524,12 @@ c Fix up for negative argument, erf, etc.
       !----------------------------------------------------------------
       FLX_MSS_FDG_FCT = 1.20d-4
 
+!! JAF Kludge -- need to update for Australia!!
+!! Currently using NA value
+#elif defined(NESTED_AU)
+
+      FLX_MSS_FDG_FCT = 1.20d-4
+
 #endif
 
 #elif defined( GEOS_FP ) && defined( GRID2x25 )

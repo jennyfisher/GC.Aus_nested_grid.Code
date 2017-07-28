@@ -142,6 +142,9 @@ CONTAINS
 #elif defined( GRID025x03125 ) && defined( NESTED_EU )
     resString = '025x03125.EU.nc'
 
+#elif defined( GRID025x03125 ) && defined( NESTED_AU )
+    resString = '025x03125.AU.nc'
+
 #elif defined( GRID025x03125 ) && defined( NESTED_NA )
     resString = '025x03125.NA.nc'
 

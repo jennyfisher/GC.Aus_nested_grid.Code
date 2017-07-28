@@ -821,6 +821,8 @@
       Input_Opt%RES_DIR = 'GEOS_0.5x0.625_AS/'
 #elif defined( GRID05x0625 ) && defined( NESTED_EU )
       Input_Opt%RES_DIR = 'GEOS_0.5x0.625_EU/'
+#elif defined( GRID05x0625 ) && defined( NESTED_AU )
+      Input_Opt%RES_DIR = 'GEOS_0.5x0.625_AU/'
 #elif defined( GRID05x0625 ) && defined( NESTED_NA )
       Input_Opt%RES_DIR = 'GEOS_0.5x0.625_NA/'
 #elif defined( GRID05x0666 ) && defined( NESTED_CH )
@@ -833,6 +835,8 @@
       Input_Opt%RES_DIR = 'GEOS_0.25x0.3125_CH/'
 #elif defined( GRID025x03125 ) && defined( NESTED_EU ) 
       Input_Opt%RES_DIR = 'GEOS_0.25x0.3125_EU/'
+#elif defined( GRID025x03125 ) && defined( NESTED_AU ) 
+      Input_Opt%RES_DIR = 'GEOS_0.25x0.3125_AU/'
 #elif defined( GRID025x03125 ) && defined( NESTED_NA ) 
       Input_Opt%RES_DIR = 'GEOS_0.25x0.3125_NA/'
 #endif
@@ -956,7 +960,7 @@
       ! the settings of the C-preprocessor switches.  We have to set
       ! this here before the call to INITIALIZE_GEOS_GRID below.
       !=================================================================
-#if defined( NESTED_CH ) || defined( NESTED_EU ) || defined( NESTED_NA ) || defined( NESTED_AS )
+#if defined( NESTED_CH ) || defined( NESTED_EU ) || defined( NESTED_NA ) || defined( NESTED_AS ) || defined ( NESTED_AU )
       Input_Opt%ITS_A_NESTED_GRID = .TRUE.
 #endif
       ! Return success
@@ -6431,7 +6435,7 @@
       ! Scalars
       LOGICAL            :: LWINDO,      LWINDO2x25,  LWINDO_CU
       LOGICAL            :: LWINDO_NA,   LWINDO_EU,   LWINDO_CH
-      LOGICAL            :: LWINDO_AS
+      LOGICAL            :: LWINDO_AS,   LWINDO_AU
       INTEGER            :: I0W,         J0W,         I1 
       INTEGER            :: I2,          J1,          J2
       INTEGER            :: N,           TS
@@ -6487,6 +6491,14 @@
       ! Directory where AS TPCORE BC's are stored (0.5x0.625 only)
       CALL SPLIT_ONE_LINE( SUBSTRS, N, 1, 'read_nested_grid_menu:8' )
       READ( SUBSTRS(1:N), '(a)' ) Input_Opt%TPBC_DIR_AS
+
+      ! Save out TPCORE BC's over AU
+      CALL SPLIT_ONE_LINE( SUBSTRS, N, 1, 'read_nested_grid_menu:9' )
+      READ( SUBSTRS(1:N), * ) LWINDO_AU
+
+      ! Directory where AU TPCORE BC's are stored
+      CALL SPLIT_ONE_LINE( SUBSTRS, N, 1, 'read_nested_grid_menu:10' )
+      READ( SUBSTRS(1:N), '(a)' ) Input_Opt%TPBC_DIR_AU
 
       ! Save out TPCORE BC's over Custom Region
       CALL SPLIT_ONE_LINE( SUBSTRS, N, 1, 'read_nested_grid_menu:11' )
@@ -6544,6 +6556,7 @@
       Input_Opt%LWINDO2x25 = LWINDO2x25
       Input_Opt%LWINDO_NA  = LWINDO_NA
       Input_Opt%LWINDO_EU  = LWINDO_EU
+      Input_Opt%LWINDO_AU  = LWINDO_AU
       Input_Opt%LWINDO_CH  = LWINDO_CH
       Input_Opt%LWINDO_AS  = LWINDO_AS
       Input_Opt%LWINDO_CU  = LWINDO_CU
@@ -6580,6 +6593,9 @@
          WRITE( 6, 100 ) 'Save BC''s over Asia         : ', LWINDO_AS
          WRITE( 6, 110 ) 'Directory with AS BC''s      : ', 
      &                    TRIM( Input_Opt%TPBC_DIR_AS )
+         WRITE( 6, 100 ) 'Save BC''s over Australia    : ', LWINDO_AU
+         WRITE( 6, 110 ) 'Directory with AU BC''s      : ', 
+     &                    TRIM( Input_Opt%TPBC_DIR_AU )
          WRITE( 6, 100 ) 'Save BC''s over custom region: ', LWINDO_CU
          WRITE( 6, 110 ) 'Directory with custom BC''s  : ', 
      &                    TRIM( Input_Opt%TPBC_DIR )
@@ -7369,6 +7385,8 @@
          CALL CHECK_DIRECTORY( Input_Opt, Input_Opt%TPBC_DIR_NA )
 #elif defined( NESTED_EU)
          CALL CHECK_DIRECTORY( Input_Opt, Input_Opt%TPBC_DIR_EU )
+#elif defined( NESTED_AU)
+         CALL CHECK_DIRECTORY( Input_Opt, Input_Opt%TPBC_DIR_AU )
 #elif defined( NESTED_CH)
          CALL CHECK_DIRECTORY( Input_Opt, Input_Opt%TPBC_DIR_CH )
 #elif defined( NESTED_AS)
@@ -7384,6 +7402,9 @@
       ENDIF
       IF ( Input_Opt%LWINDO_EU ) THEN
          CALL CHECK_DIRECTORY( Input_Opt, Input_Opt%TPBC_DIR_EU )
+      ENDIF
+      IF ( Input_Opt%LWINDO_AU ) THEN
+         CALL CHECK_DIRECTORY( Input_Opt, Input_Opt%TPBC_DIR_AU )
       ENDIF
       IF ( Input_Opt%LWINDO_CH ) THEN
          CALL CHECK_DIRECTORY( Input_Opt, Input_Opt%TPBC_DIR_CH )
