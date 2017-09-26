@@ -128,6 +128,10 @@ MODULE GCKPP_HETRATES
 
   ! Critical RH for uptake of GLYX, MGLYX, and GLYC:
   REAL(fp), PARAMETER :: CRITRH = 35.0e+0_fp
+
+  ! Effective Henry's Law constant of IEPOX for reactive
+  ! uptake to aqueous aerosols (M/atm)
+  REAL(fp), PARAMETER :: HSTAR_EPOX = 5.0e+6_fp
 !
 ! !REMARKS:
 !  Need 
@@ -1318,8 +1322,6 @@ MODULE GCKPP_HETRATES
 !
 ! !REVISION HISTORY:
 !  15 Jun 2017 - M. Sulprizio- Initial version based on calcrate.F from E.Marais
-!  10 Jul 2017 - M. Sulprizio- Update gamma values for glyoxal based on advice from
-!                              E. Marais for consistency with Marais et al., 2016
 !EOP
 !------------------------------------------------------------------------------
 !BOC
@@ -1349,17 +1351,15 @@ MODULE GCKPP_HETRATES
             ! Define gamma for GLYX:
             IF ( SUNCOS .gt. 0 ) THEN
 
-               ! Uptake during the day
-               ! Increase gamma value from 2.9e-3 to 9.5e-3 (eam, 7/10/17)
-               XSTKCF = 9.5e-3_fp
+               ! Uptake during the day (use Liggio et al., 2005):
+               XSTKCF = 2.9e-3_fp
 
             ELSE
 
                ! Uptake at night (lower uptake than day)
                ! Value is within the range 1d-5 to 1d-6
                ! (Faye McNeill personal communication, eam, 2015):
-               ! Increase gamma value from 5.6e-6 to 1.0e-5 (eam, 7/10/17)
-               XSTKCF = 1.0e-5_fp
+               XSTKCF = 5.0e-6_fp
 
             ENDIF
 
@@ -1521,8 +1521,11 @@ MODULE GCKPP_HETRATES
          ! Only consider inorganic aqueous aerosols with RH > 35%.
          IF ( N == 8 .and. RELHUM >= CRITRH ) THEN
 
-            ! Define Henry's Law constant.
-            HSTAR = 1.7e+8_fp  ! (Gaston et al., 2014)
+            ! Define Henry's Law constant
+            ! Changes H* for IEPOX again to accommodate
+            ! reduction in yields of RIP, precursor
+            ! of IEPOX (eam, 07/2015):
+            HSTAR = HSTAR_EPOX    ! (Nguyen et al., 2014)
 
             ! Define first-order particle phase reaction rates 
             ! specific to IEPOX (from Gaston et al., 2014):
@@ -1621,14 +1624,17 @@ MODULE GCKPP_HETRATES
          IF ( N == 8 .and. RELHUM >= CRITRH ) THEN
 
             ! Define Henry's Law constant.
-            HSTAR = 1.2e+5_fp ! (Pye et al., 2013)
+            ! Changes H* for IEPOX again to accommodate
+            ! reduction in yields of RIP, precursor
+            ! of IEPOX (eam, 07/2015):
+            HSTAR = HSTAR_EPOX   ! (Nguyen et al., 2014)
 
             ! Define first-order particle phase reaction rates 
-            ! specific to IMAE (from Pye et al., 2014):
-            K_HPLUS = 1.2e-3_fp  ! 30x slower than IEPOX (Piletic et al., 2013)
-            K_NUC   = 6.7e-6_fp  ! Assume others are also 30x slower.
-            K_HSO4  = 2.4e-5_fp
-            K_HYDRO = 0.0e+0_fp
+            ! specific to IEPOX (from Gaston et al., 2014):
+            K_HPLUS = 3.6e-2_fp   ! Alternate: 1.2d-3 (Edding)
+            K_NUC   = 2.6e-4_fp   ! Alternate: 5.2d-1 (Piletic)
+            K_HSO4  = 7.3e-4_fp
+            K_HYDRO = 0.e+0_fp
 
             ! Get GAMMA for IMAE hydrolysis:
             XSTKCF = EPOXUPTK( XAREA(N), XRADI(N),            &
@@ -1636,6 +1642,12 @@ MODULE GCKPP_HETRATES
                                HSTAR,    K_HPLUS,    H_PLUS,  &
                                K_NUC,    MSO4,       MNO3,    &
                                K_HSO4,   MHSO4,      K_HYDRO )
+
+            ! Scale down gamma if H+ > 8d-5 (30x less than gamma for IEPOX)
+            ! (Riedel et al., 2015)
+            IF ( H_PLUS .gt. 8.e-5_fp ) THEN
+               XSTKCF = XSTKCF / 30.e+0_fp
+            ENDIF
 
          ENDIF
 
@@ -3435,8 +3447,10 @@ MODULE GCKPP_HETRATES
       VAL2 = ( 1.e+0_fp/MACOEFF )
 
       ! Calculate the third uptake parameterization term:
-      VALTMP = ( 4.e+0_fp * AERVOL * RGASLATM * TEMP * HENRY * KPART ) / &
-               ( AERAREA * XMMS )
+      IF ( AERAREA > 0.0_fp .and. XMMS > 0.0_fp ) THEN
+         VALTMP = ( 4.e+0_fp * AERVOL * RGASLATM * TEMP * HENRY * KPART ) / &
+                  ( AERAREA * XMMS )
+      ENDIF
       IF ( VALTMP .GT. 0 ) THEN
          VAL3 = 1.e+0_fp / VALTMP
       ELSE
